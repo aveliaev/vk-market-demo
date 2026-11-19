@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 
 const sources = ['public/app.js', 'public/tour.js', 'public/vk-icons.js', 'public/style.css',
-  'pages/client.js', 'pages/worker.js', 'market.mjs'];
+  'pages/client.js', 'pages/worker.js', 'market.mjs', 'public/index.html', 'pages/build.mjs'];
 const hash = createHash('sha256');
 for (const file of sources) hash.update(await readFile(file));
 const version = hash.digest('hex').slice(0, 12);
