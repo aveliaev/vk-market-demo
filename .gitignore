@@ -1,0 +1,10 @@
+data/
+.DS_Store
+node_modules/
+dist/
+*.docx
+/*.txt
+/Logo_VK/
+/PDF - print/
+/PNG - digital/
+/SVG - vector/

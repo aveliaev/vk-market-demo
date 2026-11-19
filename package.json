@@ -1,0 +1,19 @@
+{
+  "name": "vk-payment-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test",
+    "build:pages": "node pages/build.mjs"
+  },
+  "devDependencies": {
+    "@noble/hashes": "1.8.0",
+    "esbuild": "0.25.12",
+    "sql.js": "1.13.0"
+  }
+}
