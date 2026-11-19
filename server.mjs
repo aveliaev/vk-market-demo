@@ -18,7 +18,7 @@ const market = createMarket(db, {
 });
 
 const contentTypes = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.png': 'image/png' };
-const publicFiles = new Set(['/index.html', '/app.js', '/style.css', '/assets/vk.svg', '/assets/chevron.svg', ...market.productIds.map((id) => '/assets/' + id + '.webp')]);
+const publicFiles = new Set(['/index.html', '/app.js', '/style.css', '/assets/vk.svg', '/assets/chevron.svg', '/assets/friends-choice.png', ...market.productIds.map((id) => '/assets/' + id + '.webp')]);
 
 async function handle(request, response) {
   response.setHeader('X-Content-Type-Options', 'nosniff');

@@ -114,26 +114,27 @@ function matchingProducts() {
   return items;
 }
 
-function friendsNote(item) {
+function friendsNote(item, compact = false) {
   if (!item.friends.length) return '';
-  const names = item.friends.map(safe);
-  return `<small class="friends-note"><b class="friend-avatars" aria-hidden="true">${names.map((name) => `<i>${name[0]}</i>`).join('')}</b>
-    <span>Купили друзья · ${names.join(', ')}</span></small>`;
+  if (compact) return '<small class="friend-sticker">Выбор друзей</small>';
+  return `<button type="button" class="friend-detail" data-action="friend-reviews">
+    <span><strong>Выбор друзей</strong><small>Купили ${safe(item.friends.join(' и '))}</small></span>
+    ${icon('chevron')}</button>`;
 }
 
 function buyerReviews(item) {
   if (!item.reviews.length) return '';
-  return `<section class="panel section buyer-reviews"><h2>Отзывы покупателей <small>${item.reviews.length}</small></h2>
-    ${item.reviews.map((review) => `<article><strong>${safe(review.name)}</strong><small>${safe(review.variant)} · покупка ${date(review.date)}</small>
-      <p>${safe(review.text)}</p></article>`).join('')}</section>`;
+  const reviews = [...item.reviews].sort((a, b) => Number(item.friends.includes(b.name)) - Number(item.friends.includes(a.name)));
+  return `<section class="panel section buyer-reviews"><h2 id="reviews-heading" tabindex="-1">Отзывы покупателей <small>${reviews.length}</small></h2>
+    ${reviews.map((review) => `<article><strong>${safe(review.name)}</strong>${item.friends.includes(review.name) ? '<small class="review-friend">Из ваших друзей</small>' : ''}
+      <small>${safe(review.variant)} · покупка ${date(review.date)}</small><p>${safe(review.text)}</p></article>`).join('')}</section>`;
 }
 
 function catalogCards(items) {
   return items.map((item) => `<a class="catalog-card" href="#/product/${item.id}">
-    <img src="${item.image}" alt="" width="300" height="300">
+    <div class="catalog-photo"><img src="${item.image}" alt="" width="300" height="300">${friendsNote(item, true)}</div>
     <strong>${rub(item.price)}</strong><span>${safe(item.title)}</span>
     <small>${safe(item.category)} · ${item.leadDays ? 'На заказ' : 'В наличии'}</small>
-    ${friendsNote(item)}
   </a>`).join('') || '<p class="catalog-empty">Товаров с такими параметрами нет. Попробуйте изменить поиск или фильтры.</p>';
 }
 
@@ -694,6 +695,14 @@ document.addEventListener('click', (event) => {
       <form data-form="ask"><label class="field">Сообщение продавцу<textarea name="question" required maxlength="300" autofocus>${item.leadDays ? 'Здравствуйте! Хочу заказать ' + safe(item.title) + '. Подскажите, когда сможете изготовить?' : ''}</textarea></label>
       <button class="btn primary">Отправить в переписку</button></form></div>`;
     dialog.showModal();
+    return;
+  }
+  if (action === 'friend-reviews') {
+    const heading = document.querySelector('#reviews-heading');
+    if (heading) {
+      heading.focus({preventScroll: true});
+      heading.scrollIntoView({block: 'center'});
+    }
     return;
   }
   if (action === 'focus-offer') {
