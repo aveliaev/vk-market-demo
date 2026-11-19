@@ -947,4 +947,4 @@ document.querySelector('.skip-link').addEventListener('click', (event) => {
   main.focus();
 });
 window.addEventListener('hashchange', () => void load());
-void load({ focus: false });
+void load({ focus: false }).then(() => featureTour.welcome());

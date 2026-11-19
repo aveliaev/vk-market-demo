@@ -395,6 +395,9 @@ img.shop-avatar { object-fit: cover; border-radius: 50%; }
 .tour-trigger:hover { background: #f1f6ff; }
 .tour-trigger + .demo-label { margin-left: 12px; }
 .feature-tour { position: fixed; z-index: 100; inset: 0; }
+.feature-tour.tour-welcome { pointer-events: none; }
+.tour-welcome .tour-card { pointer-events: auto; }
+.tour-welcome .tour-shade { background: transparent; }
 .tour-shade { position: absolute; inset: 0; background: #16253612; }
 .tour-marker { mix-blend-mode: multiply; position: fixed; pointer-events: none; object-fit: fill; z-index: 1; mask-image: conic-gradient(from -45deg, #000 0deg var(--marker-angle), transparent var(--marker-angle) 360deg); animation: draw-marker 1.3s cubic-bezier(.3,.1,.4,1) both; }
 @property --marker-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }

@@ -45,6 +45,53 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
   let preview;
   let targets = [];
   let frame;
+  let welcoming = false;
+  const welcomeKey = 'vk-market-jury-welcome-v1';
+
+  function rememberWelcome() {
+    try { sessionStorage.setItem(welcomeKey, 'seen'); } catch { /* The tour also works without browser storage. */ }
+  }
+
+  function dismissWelcome(focus = true) {
+    if (!welcoming) return;
+    welcoming = false;
+    ++version;
+    rememberWelcome();
+    targets = [];
+    root.hidden = true;
+    root.innerHTML = '';
+    root.classList.remove('tour-welcome', 'tour-positioned');
+    if (focus) trigger.focus();
+  }
+
+  async function welcome() {
+    if (active || welcoming || !['', '#/', '#/shop'].includes(location.hash)) return;
+    try { if (sessionStorage.getItem(welcomeKey)) return; } catch { /* Show the introduction when storage is unavailable. */ }
+    const ticket = version;
+    const marker = new Image();
+    marker.src = new URL(markerAssets.pill, import.meta.url).href;
+    try { await marker.decode(); } catch { return; }
+    if (active || ticket !== version) return;
+    welcoming = true;
+    targets = [trigger];
+    root.hidden = false;
+    root.classList.add('tour-welcome');
+    root.innerHTML = `<div class="tour-shade"></div>
+      <img class="tour-marker" data-shape="pill" src="${markerAssets.pill}" alt="" aria-hidden="true">
+      <svg class="tour-arrow" aria-hidden="true"><path pathLength="1" /></svg>
+      <section class="tour-card" role="dialog" aria-label="Обзор проекта для жюри" tabindex="-1">
+        <div class="tour-card-head"><span>Для членов жюри</span><button type="button" data-tour="welcome-dismiss" aria-label="Закрыть приветствие">×</button></div>
+        <h2>Ключевые улучшения — по шагам</h2>
+        <p>Для удобства оценки мы подготовили обзор из ${steps.length} шагов. Нажмите «Показать улучшения» — мы проведём вас по основным изменениям для покупателя и продавца.</p>
+        <div class="tour-controls"><button type="button" data-tour="welcome-dismiss">Самостоятельно</button><button type="button" class="tour-next" data-tour="welcome-start">Начать обзор <span aria-hidden="true">→</span></button></div>
+      </section>`;
+    requestAnimationFrame(() => {
+      if (!welcoming || ticket !== version) return;
+      place();
+      root.classList.add('tour-positioned');
+      root.querySelector('.tour-card').focus({preventScroll: true});
+    });
+  }
 
   function makePreview(store, merchant) {
     const item = store.catalog.find((entry) => entry.id === 'cups');
@@ -127,7 +174,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
   }
 
   function place() {
-    if (!active || !targets.length || targets.some((target) => !target.isConnected)) return;
+    if ((!active && !welcoming) || !targets.length || targets.some((target) => !target.isConnected)) return;
     const rings = [...root.querySelectorAll('.tour-marker')];
     const paths = [...root.querySelectorAll('.tour-arrow path')];
     const card = root.querySelector('.tour-card');
@@ -142,7 +189,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     let padding = 0;
     rects.forEach((r, i) => {
       const padX = Math.max(18, r.width * .05);
-      const padY = Math.max(16, r.height * .05);
+      const padY = welcoming ? 6 : Math.max(16, r.height * .05);
       padding = Math.max(padding, padX, padY);
       Object.assign(rings[i].style, {left: r.left - padX + 'px', top: r.top - padY + 'px', width: r.width + 2 * padX + 'px', height: r.height + 2 * padY + 'px'});
     });
@@ -226,6 +273,8 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
 
   async function start() {
     if (active || trigger.disabled) return;
+    dismissWelcome(false);
+    rememberWelcome();
     const ticket = ++version;
     const savedHash = location.hash;
     active = true;
@@ -278,6 +327,8 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
 
   root.addEventListener('click', (event) => {
     const action = event.target.closest('[data-tour]')?.dataset.tour;
+    if (action === 'welcome-dismiss') dismissWelcome();
+    if (action === 'welcome-start') void start();
     if (action === 'retry') {
       active = false;
       trigger.disabled = false;
@@ -288,6 +339,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     if (action === 'next') void (index === steps.length - 1 ? close() : show(index + 1));
   });
   document.addEventListener('keydown', (event) => {
+    if (welcoming && event.key === 'Escape') { event.preventDefault(); dismissWelcome(); return; }
     if (!active) return;
     if (event.key === 'Escape') { event.preventDefault(); void close(); }
     if (event.key === 'Tab') {
@@ -307,6 +359,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
   };
   window.addEventListener('resize', reposition);
   window.addEventListener('scroll', reposition, {passive:true});
+  window.addEventListener('hashchange', () => dismissWelcome(false));
   trigger.addEventListener('click', () => void start());
-  return {dataFor, get active() {return active;}};
+  return {dataFor, welcome, get active() {return active;}};
 }
