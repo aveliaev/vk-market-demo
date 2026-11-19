@@ -29,7 +29,7 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
   const HOUR = 3600000;
   const DAY = 24 * HOUR;
   const VK_RATE = 150;
-  const RATES = { card: 200, sbp: 70 };
+  const RATES = { card: 200, sbp: 70, wallet: 0 };
   const VARIANTS = ['Молочная', 'Кобальтовая'];
   const PICKUP = 'Самовывоз из мастерской';
   const SELLER = 'Керамика «Форма»';
@@ -52,13 +52,13 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
     { id: 'vase', title: 'Ваза «Орбита»', price: 320000, category: 'Декор', variants: ['Шалфей', 'Оливковая'], description: 'Скульптурная ваза из каменной керамики. Высота 18 см.' },
     { id: 'bowl', title: 'Пиала «Песок»', price: 145000, category: 'Посуда', variants: ['Песочная', 'Молочная'], description: 'Глубокая пиала для завтрака с крапчатой глазурью. Объём 450 мл.' },
     { id: 'candles', title: 'Подсвечник «Волна»', price: 210000, category: 'Декор', variants: ['Молочный'], description: 'Фигурный подсвечник на две тонкие свечи. Ширина 16 см.' },
-    { id: 'plate', title: 'Тарелка «Спираль»', price: 185000, category: 'Посуда', variants: ['Кобальтовая'], description: 'Плоская тарелка с ручной росписью под глазурью. Диаметр 22 см.' },
+    { id: 'plate', leadDays: 14, title: 'Тарелка «Спираль»', price: 185000, category: 'Посуда', variants: ['Кобальтовая'], description: 'Плоская тарелка с ручной росписью под глазурью. Диаметр 22 см.' },
     { id: 'jug', title: 'Кувшин «Терра»', price: 270000, category: 'Посуда', variants: ['Терракотовый'], description: 'Небольшой кувшин с ручкой и узким носиком. Объём 600 мл.' },
     { id: 'linen', title: 'Льняное полотенце «Полоса»', price: 85000, category: 'Текстиль', variants: ['Индиго', 'Графит'], description: 'Кухонное полотенце из натурального льна. Размер 45 × 65 см.' },
   ];
 
   function catalog() {
-    return assortment.map((item) => ({ ...item, price: item.price ?? priceFor(get('base')), image: './assets/' + item.id + '.webp' }));
+    return assortment.map((item) => ({ ...item, latestReady: item.leadDays ? futureDate(item.leadDays) : null, price: item.price ?? priceFor(get('base')), image: './assets/' + item.id + '.webp' }));
   }
 
   db.prepare(`INSERT OR IGNORE INTO questions VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
@@ -100,7 +100,7 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
     }
   }
 
-  function newOrder({ lines = null, productId = null, questionId = null, title, variant, quantity, unit, total = unit * quantity, shipping = 0, fulfillment = PICKUP, ready = readyDate(), expires = timestamp() + DAY, source }) {
+  function newOrder({ lines = null, productId = null, questionId = null, title, variant, quantity, unit, total = unit * quantity, shipping = 0, fulfillment = PICKUP, ready = null, expires = timestamp() + DAY, source }) {
     const number = get('nextOrder') ?? 1042;
     put('nextOrder', number + 1);
     const order = {
@@ -174,7 +174,7 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
   function present(order) {
     const status = effectiveStatus(order);
     const lines = order.lines ?? [{ productId: order.productId, title: order.title, variant: order.variant, quantity: order.quantity, unit: order.unit, total: order.total ?? order.amount - order.shipping }];
-    return { ...order, lines, status, statusLabel: labels[status], fees: fees(order) };
+    return { ...order, lines, status, statusLabel: labels[status], fees: fees(order), walletCashback: charge(order.amount, 500) };
   }
 
   function integer(value, min, max) {
@@ -388,7 +388,7 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
     const products = catalog();
     const lines = saved.lines.map((line) => {
       const item = products.find((entry) => entry.id === line.productId);
-      return { ...line, title: item.title, unit: item.price, total: item.price * line.quantity };
+      return { ...line, ...(item.leadDays ? { requiresChat: true } : {}), title: item.title, unit: item.price, total: item.price * line.quantity };
     });
     return { revision: saved.revision, lines, total: lines.reduce((sum, line) => sum + line.total, 0) };
   }
@@ -399,6 +399,7 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
       const previous = db.prepare('SELECT order_id FROM cart_checkouts WHERE buyer = ? AND revision = ?').get(buyer, string(body.revision, 1, 50));
       if (previous) return present(getOrder(previous.order_id));
       requireThat(cart.lines.length && eligible(), 'Для оформления нужна непустая корзина и подключённый магазин.');
+      requireThat(!cart.lines.some((line) => line.requiresChat), 'Уберите товары на заказ из корзины и обсудите их с продавцом.');
       requireThat(cart.total === body.total && cart.revision === body.revision && cart.lines.every((line,i) => line.unit === body.units?.[i]), 'Корзина или цена изменилась. Проверьте обновлённый итог.');
       const quantity = cart.lines.reduce((sum, line) => sum + line.quantity, 0);
       const first = cart.lines[0];
@@ -412,6 +413,7 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
     requireThat(action === 'add' || action === 'set', 'Неизвестное действие.', 404);
     const product = assortment.find((item) => item.id === body.productId);
     requireThat(product?.variants.includes(body.variant), 'Товар или вариант недоступен.', 400);
+    requireThat(!product.leadDays || (action === 'set' && body.quantity === 0), 'Этот товар изготавливается на заказ. Напишите продавцу.');
     const lines = cart.lines.map(({ productId, variant, quantity }) => ({ productId, variant, quantity }));
     const index = lines.findIndex((line) => line.productId === product.id && line.variant === body.variant);
     let quantity = integer(body.quantity, action === 'add' ? 1 : 0, 8);
@@ -494,6 +496,7 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
         const item = catalog().find((entry) => entry.id === (body.productId ?? 'cups'));
         requireThat(item, 'Товар не найден.', 404);
         requireThat(item.variants.includes(body.variant), 'Выберите доступный вариант.', 400);
+        requireThat(!item.leadDays, 'Сначала обсудите индивидуальный заказ с продавцом.');
         const quantity = integer(body.quantity, 1, 8);
         const unit = item.price;
         requireThat(body.unit === unit, 'Цена обновилась. Проверьте новую цену в карточке.');
@@ -501,6 +504,8 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
       }
       if (area === 'orders' && key === 'chat') {
         requireThat(eligible(), 'Сначала подключите приём оплаты.');
+        const product = assortment.find((entry) => entry.id === body.productId);
+        requireThat(!product?.leadDays || body.questionId, 'Для индивидуального заказа откройте переписку о товаре.');
         if (body.questionId) {
           const context = db.prepare('SELECT product_id FROM questions WHERE id = ?').get(string(body.questionId, 1, 50));
           requireThat(context && context.product_id === body.productId, 'Товар не совпадает с вопросом покупателя.', 400);
@@ -510,11 +515,12 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
         const parsed = new Date(ready + 'T00:00:00Z');
         requireThat(/^\d{4}-\d{2}-\d{2}$/.test(ready) && Number.isFinite(+parsed) && parsed.toISOString().slice(0, 10) === ready && ready >= futureDate(0),
           'Укажите дату готовности в будущем.', 400);
+        requireThat(!product?.leadDays || ready <= futureDate(product.leadDays), 'Дата превышает максимальный срок изготовления.', 400);
         const quantity = integer(body.quantity, 1, 99);
         const total = integer(body.total, quantity, 100000000);
         return present(newOrder({
           questionId: body.questionId || null,
-          productId: assortment.find((entry) => entry.id === body.productId)?.id ?? null,
+          productId: product?.id ?? null,
           title: string(body.title, 2, 100), variant: string(body.variant, 1, 80), quantity, unit: null, total,
           fulfillment, ready, shipping: fulfillment === 'Доставка' ? integer(body.shipping, 0, 10000000) : 0,
           expires: timestamp() + HOUR * integer(body.hours, 1, 168), source: 'chat',

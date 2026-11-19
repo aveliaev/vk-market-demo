@@ -299,6 +299,10 @@ td .amber-text { color: #865315; }
 .thread-question .public-answer form { padding-top: 10px; }
 .field textarea { font: inherit; padding: 9px; border: 1px solid var(--border); border-radius: 8px; resize: vertical; min-height: 58px; }
 .product-actions { grid-template-columns: 1fr 1.5fr; }
+.product-actions > :only-child { grid-column: 1 / -1; }
+.product-info > .text-button { align-self: center; margin-top: 4px; }
+.payment-choice .badge { vertical-align: middle; }
+#cashback-preview .detail-row { color: var(--green); }
 .cart-line { display:grid; grid-template-columns: 66px minmax(100px,1fr) auto auto; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid var(--border); }
 .cart-line:first-child { padding-top:0; }
 .cart-line:last-child { border:0; }

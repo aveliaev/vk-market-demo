@@ -33,7 +33,7 @@ const date = (value, options = { day: 'numeric', month: 'long' }) => new Intl.Da
 const datetime = (value) => date(value, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const duration = (ms) => ms < 60000 ? Math.round(ms / 1000) + ' сек' : Math.floor(ms / 60000) + ' мин';
 const safe = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
-const methodName = (method) => ({ card: 'Банковская карта', sbp: 'СБП' })[method] ?? '—';
+const methodName = (method) => ({ card: 'Банковская карта', sbp: 'СБП', wallet: 'VK Кошелёк' })[method] ?? '—';
 const stageLabel = { started: 'Начато', details: 'Нужны сведения', partner: 'Нужны сведения', registered: 'Нужны сведения', review: 'На проверке', connected: 'Подключено', paused: 'Приостановлено', ineligible: 'Требуется другой статус' };
 const receiptLabel = { missing: 'Ожидается', issued: 'Выдан', corrected: 'Скорректирован' };
 const payoutLabel = { waiting: 'Ожидает оплаты', scheduled: 'Запланирована', sent: 'Перечислена', cancelled: 'Отменена', reversed: 'Возвращена партнёру' };
@@ -118,7 +118,7 @@ function catalogCards(items) {
   return items.map((item) => `<a class="catalog-card" href="#/product/${item.id}">
     <img src="${item.image}" alt="" width="300" height="300">
     <strong>${rub(item.price)}</strong><span>${safe(item.title)}</span>
-    <small>${safe(item.category)}</small>
+    <small>${safe(item.category)} · ${item.leadDays ? 'На заказ' : 'В наличии'}</small>
   </a>`).join('') || '<p class="catalog-empty">Товаров с такими параметрами нет. Попробуйте изменить поиск или фильтры.</p>';
 }
 
@@ -152,24 +152,26 @@ function product() {
   <article class="panel product">
     <div class="product-photo"><img src="${item.image}" width="1000" height="800" alt="${safe(item.title)}"></div>
     <div class="product-info">
-      ${badge(store.eligible ? 'В наличии' : 'Приём оплаты приостановлен', store.eligible ? 'green' : 'amber')}
+      ${badge(item.leadDays ? 'На заказ' : 'В наличии', item.leadDays ? 'blue' : 'green')}
       <h2>${safe(item.title)}</h2>
       <p class="product-description">${safe(item.description)}</p>
       <fieldset class="colors"><legend>Цвет</legend><div class="chips">${item.variants.map((name, i) => `<button type="button" class="chip ${variant === i ? 'selected' : ''}" data-action="variant:${i}" aria-pressed="${variant === i}">${name}</button>`).join('')}</div></fieldset>
       <div class="purchase-control"><div><div class="product-price">${rub(item.price)}</div><div class="muted">за штуку</div></div>
-        <div class="stepper" aria-label="Количество">
+        ${item.leadDays ? '' : `<div class="stepper" aria-label="Количество">
           <button type="button" data-action="quantity:-1" aria-label="Уменьшить количество" ${quantity === 1 ? 'disabled' : ''}>${icon('minus')}</button>
           <output aria-live="polite">${quantity}</output>
           <button type="button" data-action="quantity:1" aria-label="Увеличить количество" ${quantity === 8 ? 'disabled' : ''}>${icon('plus')}</button>
-        </div>
+        </div>`}
       </div>
-      <div class="product-actions">${button('В корзину', 'cart-add', { kind: 'secondary', disabled: !store.eligible })}${button('Купить сейчас за ' + rub(item.price * quantity), 'buy', { disabled: !store.eligible })}</div>
+      <div class="product-actions">${item.leadDays ? button('Обсудить заказ', 'compose', {icon: 'chat'}) : `${button('В корзину', 'cart-add', { kind: 'secondary', disabled: !store.eligible })}${button('Купить сейчас за ' + rub(item.price * quantity), 'buy', { disabled: !store.eligible })}`}</div>
+      ${item.leadDays ? '' : button('Написать продавцу', 'compose', {kind: 'text-button', icon: 'chat'})}
+      ${store.eligible ? '' : '<p class="muted">Магазин временно приостановил приём оплаты.</p>'}
     </div>
   </article>
   <div class="product-foot">
-    <div class="panel feature"><div class="feature-icon">${icon('pin')}</div><div><strong>Самовывоз</strong><span>Из мастерской продавца</span></div></div>
-    <div class="panel feature"><div class="feature-icon">${icon('calendar')}</div><div><strong>Готовность ${date(store.ready)}</strong><span>Дата фиксируется в заказе</span></div></div>
-    <div class="panel feature"><div class="feature-icon">${icon('shield')}</div><div><strong>Карта или СБП</strong><span>Оплата на экране заказа</span></div></div>
+    <div class="panel feature"><div class="feature-icon">${icon('pin')}</div><div><strong>Получение</strong><span>${item.leadDays ? 'Доставка или самовывоз по договорённости' : 'Из мастерской продавца'}</span></div></div>
+    <div class="panel feature"><div class="feature-icon">${icon('calendar')}</div><div><strong>${item.leadDays ? 'Изготовление до ' + item.leadDays + ' дней' : 'Бесплатный самовывоз'}</strong><span>${item.leadDays ? 'Детали и дату согласуйте в переписке' : 'Время получения согласуйте с продавцом'}</span></div></div>
+    <div class="panel feature"><div class="feature-icon">${icon('shield')}</div><div><strong>Карта, СБП и VK Кошелёк</strong><span>Оплата на экране заказа</span></div></div>
   </div>
   ${productQuestions()}`;
 }
@@ -182,7 +184,7 @@ function seller() {
     partner: ['Регистрация у партнёра', 'Имитация защищённого интерфейса партнёра. Используются только тестовые сведения.'],
     registered: ['Вы вернулись в магазин', 'Статус самозанятого подтверждён. Подключите выплаты и чеки.'],
     review: ['Проверяем подключение', 'В демонстрации ответ партнёра можно получить сразу.'],
-    connected: ['Оплата подключена', 'Покупатели могут платить банковской картой и через СБП.'],
+    connected: ['Оплата подключена', 'Покупателям доступны карта, СБП и VK Кошелёк.'],
     paused: ['Оплата приостановлена', 'Тестовый партнёр сообщил об утрате статуса. Доступна повторная проверка.'],
     ineligible: ['Требуется другой статус', s.reason],
   };
@@ -209,7 +211,7 @@ function seller() {
       <h2>${title}</h2><p class="muted">${safe(desc)}</p><div class="setup-actions">${actions[s.stage]}</div>
     </section>
     <aside class="panel section terms"><div class="feature-icon">${icon('wallet')}</div><h2>Условия оплаты</h2>
-      ${row('Комиссия VK', '1,5%')}${row('Эквайринг по карте', '2%')}${row('Эквайринг СБП', '0,7%')}
+      ${row('Комиссия VK', '1,5%')}${row('Эквайринг по карте', '2%')}${row('Эквайринг СБП', '0,7%')}${row('VK Кошелёк в демо', '0%')}
       <p>Комиссии считаются от оплаченной суммы. Тарифы эквайринга приведены для демонстрации. Налоги продавец уплачивает самостоятельно.</p>
       <p>Демо-выплату подтверждает оператор. При полном возврате комиссия VK возвращается, эквайринг удерживается.</p>
       ${s.stage === 'connected' ? `<div class="section-divider"></div>${row('Действия продавца', duration(s.active))}${row('Ожидание проверки', duration(s.waiting))}` : ''}
@@ -292,7 +294,7 @@ function chat() {
           <label class="field">Товар<input name="title" maxlength="100" required value="${safe(product.title)}"></label>
           <label class="field">Вариант<input name="variant" maxlength="80" required value="${safe(selected?.variant ?? 'Кобальтовая')}"></label>
           <div class="form-pair"><label class="field">Количество<input type="number" name="quantity" min="1" max="99" value="${selected ? 1 : 2}" required></label><label class="field">Цена товаров, ₽<input type="number" name="total" step="0.01" min="0.01" max="1000000" value="${cashInput(product.price * (selected ? 1 : 2))}" required></label></div>
-          <div class="form-pair"><label class="field">Готовность<input name="ready" type="date" required value="${store.ready}"></label><label class="field">Срок оплаты<select name="hours"><option value="24">24 часа</option><option value="48">48 часов</option><option value="72">72 часа</option></select></label></div>
+          <div class="form-pair"><label class="field">Согласованная дата<input name="ready" type="date" required value="${product.latestReady ?? store.ready}" ${product.latestReady ? `max="${product.latestReady}"` : ''}></label><label class="field">Срок оплаты<select name="hours"><option value="24">24 часа</option><option value="48">48 часов</option><option value="72">72 часа</option></select></label></div>
           <label class="field">Получение<select name="fulfillment" id="fulfillment"><option value="pickup">Самовывоз</option><option value="delivery">Доставка</option></select></label>
           <label class="field" id="shipping-field" hidden>Доставка, ₽<input type="number" name="shipping" step="0.01" min="0" max="100000" value="0"></label>
           <button class="btn primary" ${store.eligible ? '' : 'disabled'}>Отправить на оплату</button>
@@ -318,11 +320,11 @@ function cartPage() {
       <img src="./assets/${safe(line.productId)}.webp" alt="" width="66" height="66">
       <div><a class="order-link" href="#/product/${line.productId}">${safe(line.title)}</a><small>${safe(line.variant)} · ${rub(line.unit)} за штуку</small>
       ${button('Удалить', 'cart-remove:' + i, {kind:'text-button'})}</div>
-      <div class="stepper"><button data-action="cart-minus:${i}" aria-label="Уменьшить количество" ${line.quantity <= 1 ? 'disabled' : ''}>${icon('minus')}</button><output>${line.quantity}</output><button data-action="cart-plus:${i}" aria-label="Увеличить количество" ${line.quantity >= 8 ? 'disabled' : ''}>${icon('plus')}</button></div>
+      ${line.requiresChat ? '<span>На заказ · удалите из корзины и напишите продавцу</span>' : `<div class="stepper"><button data-action="cart-minus:${i}" aria-label="Уменьшить количество" ${line.quantity <= 1 ? 'disabled' : ''}>${icon('minus')}</button><output>${line.quantity}</output><button data-action="cart-plus:${i}" aria-label="Увеличить количество" ${line.quantity >= 8 ? 'disabled' : ''}>${icon('plus')}</button></div>`}
       <strong>${rub(line.total)}</strong></article>`).join('')}</section>
     <aside class="panel section"><h2>Ваш заказ</h2>${row('Количество товаров', String(cart.lines.reduce((sum,l) => sum+l.quantity,0)))}
       ${row('Самовывоз', 'Бесплатно')}${row('Итого', rub(cart.total), 'sum')}
-      ${button('Оформить заказ', 'cart-checkout', {disabled: !state.store.eligible})}
+      ${button('Оформить заказ', 'cart-checkout', {disabled: !state.store.eligible || cart.lines.some((line) => line.requiresChat)})}
       ${state.store.eligible ? '' : '<p>Магазин временно приостановил приём оплаты.</p>'}</aside></div>`;
 }
 
@@ -332,7 +334,7 @@ function purchases() {
     ${orders.length ? orders.map((o) => `<article class="panel section purchase-record">
       <div class="registry-head"><h2><a class="order-link" href="#/checkout/${o.token}">Заказ ${safe(o.id)}</a></h2>${badge(o.statusLabel, o.status === 'paid' ? 'green' : '')}</div>
       ${orderLines(o)}${row('Итого',rub(o.amount),'sum')}
-      ${row(safe(o.fulfillment), date(o.ready))}${o.status === 'paid' ? row('Исполнение', o.fulfillmentStatus === 'ready' && o.fulfillment.startsWith('Самовывоз') ? 'Готов к самовывозу' : fulfillmentLabel[o.fulfillmentStatus]) : ''}
+      ${row('Получение', safe(o.fulfillment))}${o.source === 'chat' && o.ready ? row('Согласованная дата', date(o.ready)) : ''}${o.status === 'paid' ? row('Исполнение', o.fulfillmentStatus === 'ready' && o.fulfillment.startsWith('Самовывоз') ? 'Готов к самовывозу' : fulfillmentLabel[o.fulfillmentStatus]) : ''}
       <div class="inline-actions"><a class="btn secondary" href="#/checkout/${o.token}">Открыть заказ</a>
       ${o.receipt !== 'missing' ? `<a class="btn text-button" href="#/receipt/${o.token}">Чек</a>` : ''}</div>
       </article>`).join('') : '<section class="panel section"><h2>Заказов пока нет</h2><p>После оформления заказ появится здесь.</p><a href="#/shop" class="btn primary">В каталог</a></section>'}`;
@@ -356,7 +358,7 @@ function orderDetails(o) {
       <h2>Получение</h2>
       <dl class="checkout-meta">
         <div><dt>${icon('pin')}Способ получения</dt><dd>${safe(o.fulfillment)}</dd></div>
-        <div><dt>${icon('calendar')}Готовность</dt><dd>${date(o.ready)}</dd></div>
+        ${o.source === 'chat' && o.ready ? `<div><dt>${icon('calendar')}Согласованная дата</dt><dd>${date(o.ready)}</dd></div>` : '<div><dt>Условия</dt><dd>Бесплатно, время по договорённости</dd></div>'}
       </dl>
       ${o.shipping ? row('Стоимость доставки', rub(o.shipping)) : ''}
     </div>
@@ -368,7 +370,7 @@ function orderDetails(o) {
 }
 
 function methodChoices() {
-  return `<fieldset class="payment-choices"><legend>Способ оплаты</legend>${[['card','card','Банковская карта','Подтверждение на стороне партнёра'],['sbp','bolt','СБП','Подтверждение в приложении банка']].map(([method, symbol, title, desc]) => `<label class="choice payment-choice"><span class="feature-icon">${icon(symbol)}</span><span class="payment-label"><strong>${title}</strong><small>${desc}</small></span><input type="radio" name="method" value="${method}" ${state.method === method ? 'checked' : ''}></label>`).join('')}</fieldset>`;
+  return `<fieldset class="payment-choices"><legend>Способ оплаты</legend>${[['card','card','Банковская карта','Подтверждение на стороне партнёра'],['sbp','bolt','СБП','Подтверждение в приложении банка'],['wallet','wallet','VK Кошелёк','Подтверждение в тестовом кошельке']].map(([method, symbol, title, desc]) => `<label class="choice payment-choice"><span class="feature-icon">${icon(symbol)}</span><span class="payment-label"><strong>${title} ${method === 'wallet' ? badge('Кешбэк 5%', 'green') : ''}</strong><small>${desc}</small></span><input type="radio" name="method" value="${method}" ${state.method === method ? 'checked' : ''}></label>`).join('')}</fieldset>`;
 }
 
 function checkoutComparison() {
@@ -386,8 +388,8 @@ function checkoutComparison() {
       <section class="comparison-path proposed">
         <h2>Сценарий MVP для готового товара</h2>
         <ol>
-          <li>На оформлении уже видны итоговая сумма, способ получения и дата готовности.</li>
-          <li>Покупатель выбирает карту или СБП и подтверждает платёж на стороне партнёра.</li>
+          <li>На оформлении уже видны итоговая сумма, условия самовывоза.</li>
+          <li>Покупатель выбирает карту, СБП или VK Кошелёк и подтверждает платёж.</li>
           <li>Подтверждение заказа и чек доступны в деталях заказа.</li>
         </ol>
       </section>
@@ -402,11 +404,12 @@ function checkout() {
   if (o.status === 'unpaid') {
     body = `<h2>Способ оплаты</h2>
       ${methodChoices()}
+      <div id="cashback-preview" aria-live="polite" ${state.method === 'wallet' ? '' : 'hidden'}>${row('Ожидаемый кешбэк', rub(o.walletCashback))}</div>
       ${row('Итого к оплате', rub(o.amount), 'sum')}
       <div class="payment-actions">${button('Оплатить ' + rub(o.amount), 'checkout:start')}${button('Отменить заказ', 'cancel-prompt', { kind: 'text-button' })}</div>
       <p class="payment-note">${icon('shield')}Оплата тестовая. После оплаты возврат оформляется по запросу.</p>`;
   } else if (o.status === 'pending' && !o.bankConfirmed) {
-    body = `<div class="feature-icon status-icon">${icon(o.method === 'sbp' ? 'bolt' : 'card')}</div><h2>${o.method === 'sbp' ? 'Тестовое приложение банка' : 'Тестовая форма партнёра'}</h2>
+    body = `<div class="feature-icon status-icon">${icon(o.method === 'sbp' ? 'bolt' : o.method)}</div><h2>${{wallet: 'Тестовый VK Кошелёк', sbp: 'Тестовое приложение банка', card: 'Тестовая форма партнёра'}[o.method]}</h2>
       <p class="muted">Подтвердите платёж на сумму ${rub(o.amount)}. Реальные платёжные данные вводить не нужно.</p>
       <div class="inline-actions">${button('Подтвердить тестовый платёж', 'checkout:confirm')}${button('Выбрать другой способ', 'checkout:decline', { kind: 'secondary' })}</div>`;
   } else if (o.status === 'pending') {
@@ -415,7 +418,7 @@ function checkout() {
     const refundText = o.refund === 'requested' ? 'Продавец получил запрос на возврат.' : 'Партнёр обрабатывает полный возврат.';
     body = `<div class="feature-icon status-icon success-icon">${icon('check')}</div><h2>Заказ оплачен</h2>
       <p class="muted">Платёж ${rub(o.amount)} подтверждён. Продавец — Керамика «Форма».</p>
-      <div class="status-lines">${row('Способ оплаты', methodName(o.method))}${row('Исполнение', fulfillmentLabel[o.fulfillmentStatus])}</div>
+      <div class="status-lines">${row('Способ оплаты', methodName(o.method))}${o.method === 'wallet' ? row('Демо-кешбэк · 5%', rub(o.walletCashback)) : ''}${row('Исполнение', fulfillmentLabel[o.fulfillmentStatus])}</div>
       <div class="inline-actions"><a class="btn primary" href="#/receipt/${o.token}">${icon('receipt')}Открыть чек</a>
         <a class="btn secondary" href="#/chat">${icon('chat')}Написать продавцу</a></div>
       ${o.refund === 'none' ? button('Запросить возврат', 'refund-prompt', { kind: 'text-button' }) : `<p class="notice">${icon('info')}${refundText}</p>`}`;
@@ -492,8 +495,8 @@ function analytics() {
       ${tile('Доля оборота через VK', pct(a.turnoverShare), 'С учётом внешних продаж', 'chart')}
       ${tile('Конверсия в оплату VK', pct(a.conversion), a.confirmed + ' оплат / ' + a.total + ' заказов', 'check')}
       ${tile('Доход продавца', rub(a.sellerIncome), 'До налогов, после затрат', 'wallet')}
-      ${tile('Комиссионная выручка VK', rub(a.vk), 'После возвратов комиссии', 'tag')}
-      ${tile('Вклад VK после расходов', rub(a.vkIncome), '', 'chart')}
+      ${tile('Комиссионная выручка VK', rub(a.vk), '', 'tag')}
+      ${tile('Доход VK после расходов', rub(a.vkIncome), 'Комиссии ' + rub(a.vk) + ' минус расходы VK ' + rub(e.vkCosts), 'chart')}
     </div>
     ${funnelPanel(state.merchant.funnel, state.merchant.orders)}
     <div class="two-column analytics-grid"><section class="panel section"><h2>Итоги операций</h2>
@@ -666,6 +669,17 @@ document.addEventListener('click', (event) => {
   const control = event.target.closest('button[data-action]');
   if (!control) return;
   const [action, arg] = control.dataset.action.split(':');
+  if (action === 'compose') {
+    const item = state.item;
+    const title = item.leadDays ? 'Обсудить заказ' : 'Написать продавцу';
+    dialog.setAttribute('aria-label', title);
+    dialog.innerHTML = `<div class="dialog-inner"><button class="icon-btn dialog-close" data-action="close-dialog" aria-label="Закрыть">${icon('x')}</button>
+      <h2>${title}</h2><p>${safe(item.title)} · ${safe(item.variants[state.variant])}</p>
+      <form data-form="ask"><label class="field">Сообщение продавцу<textarea name="question" required maxlength="300" autofocus>${item.leadDays ? 'Здравствуйте! Хочу заказать ' + safe(item.title) + '. Подскажите, когда сможете изготовить?' : ''}</textarea></label>
+      <button class="btn primary">Отправить в переписку</button></form></div>`;
+    dialog.showModal();
+    return;
+  }
   if (action === 'focus-offer') {
     main.querySelector('form[data-form="chat"] input[name="title"]').focus();
     return;
@@ -782,7 +796,10 @@ document.addEventListener('submit', (event) => {
 
 document.addEventListener('change', (event) => {
   const field = event.target;
-  if (field.name === 'method') state.method = field.value;
+  if (field.name === 'method') {
+    state.method = field.value;
+    document.querySelector('#cashback-preview').hidden = field.value !== 'wallet';
+  }
   if (field.id === 'fulfillment') document.querySelector('#shipping-field').hidden = field.value !== 'delivery';
 });
 

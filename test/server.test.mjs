@@ -184,3 +184,28 @@ test('корзина сохраняет состав и принадлежнос
   assert.equal(refunded.receipt, 'corrected');
   assert.deepEqual(refunded.lines, cart.lines);
 });
+
+test('тарелку заказывают через переписку и оплачивают тестовым кошельком с кешбэком', async () => {
+  const { catalog } = await api('store');
+  const plate = catalog.find((item) => item.id === 'plate');
+  const selection = { productId: plate.id, variant: plate.variants[0], quantity: 1, unit: plate.price };
+  assert.equal(plate.leadDays, 14);
+  await api('orders/store', selection, 409);
+  await api('cart/add', selection, 409);
+
+  const offer = { ...selection, title: plate.title, total: plate.price, ready: plate.latestReady, hours: 24, fulfillment: 'pickup' };
+  await api('orders/chat', offer, 409);
+  const question = await api('questions', { ...selection, question: 'Можно заказать тарелку?' });
+  await api('orders/chat', { ...offer, ready: '2099-12-31', questionId: question.id }, 400);
+  const order = await api('orders/chat', { ...offer, questionId: question.id });
+  assert.equal(order.amount, 185000);
+  assert.equal(order.walletCashback, 9250);
+  const path = 'checkout/' + order.token;
+  await api(path + '/start', { method: 'wallet' });
+  await api(path + '/confirm', {});
+  const paid = await until(path, 'paid');
+  assert.equal(paid.method, 'wallet');
+  assert.equal(paid.amount, order.amount);
+  assert.equal(paid.receipt, 'issued');
+  assert.deepEqual(paid.fees, { vk: 2775, acquiring: 0, net: 182225 });
+});
