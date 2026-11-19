@@ -211,6 +211,7 @@ p.notice { margin-top: 16px; }
 @keyframes spin { to { transform: rotate(1turn); } }
 
 .metrics { display: grid; gap: 13px; margin-bottom: 18px; }
+.metrics.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .metrics.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .metric { display: grid; gap: 6px; align-content: start; padding: 16px; }
 .metric .icon { color: #1765d7; margin-bottom: 3px; }

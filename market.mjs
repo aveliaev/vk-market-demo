@@ -28,6 +28,8 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
 
   const HOUR = 3600000;
   const DAY = 24 * HOUR;
+  const initialEconomy = { externalCount: 3, externalAmount: 460000, productCosts: 361000, promotion: 120000 };
+  const economyFields = Object.keys(initialEconomy);
   const VK_RATE = 150;
   const RATES = { card: 200, sbp: 70, wallet: 0 };
   const VARIANTS = ['Молочная', 'Кобальтовая'];
@@ -150,7 +152,7 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
     if (get('seller')) return;
     put('seller', account());
     put('base', 118200);
-    put('economy', { externalCount: 3, externalAmount: 460000, productCosts: 361000, promotion: 120000, vkCosts: 10000 });
+    put('economy', initialEconomy);
     const demo = newOrder({ title: PRODUCT, variant: VARIANTS[0], quantity: 2, unit: 120000, source: 'store' });
     Object.assign(demo, {
       created: timestamp() - 2 * DAY, status: 'paid', method: 'card', paymentId: 'test_' + randomUUID(),
@@ -228,7 +230,7 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
     }
   }
 
-  function ordersSummary(orders) {
+  function ordersSummary(orders, economy) {
     const settled = orders.filter((order) => order.status === 'paid');
     const confirmed = orders.filter((order) => order.paidAt);
     const returned = orders.filter((order) => order.status === 'refunded');
@@ -238,9 +240,8 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
     const vk = sum(settled, (order) => fees(order).vk);
     // In the simulation VK returns its fee and acquiring charges are retained.
     const acquiring = sum(confirmed, (order) => fees(order).acquiring);
-    const economy = get('economy');
     return {
-      gross, turnover, vk, acquiring, paid: settled.length, confirmed: confirmed.length, total: orders.length,
+      gross, turnover, acquiring, paid: settled.length, confirmed: confirmed.length, total: orders.length,
       pending: orders.filter((order) => order.status === 'pending').length,
       payouts: sum(settled.filter((order) => order.payout === 'sent'), (order) => fees(order).net),
       scheduled: sum(settled.filter((order) => order.payout === 'scheduled'), (order) => fees(order).net),
@@ -250,7 +251,6 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
       turnoverShare: turnover + economy.externalAmount ? turnover / (turnover + economy.externalAmount) : null,
       conversion: orders.length ? confirmed.length / orders.length : null,
       sellerIncome: turnover + economy.externalAmount - vk - acquiring - economy.productCosts - economy.promotion,
-      vkIncome: vk - economy.vkCosts,
     };
   }
 
@@ -448,7 +448,9 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
       if (area === 'merchant') {
         const orders = allOrders().map(present);
         const funnel = db.prepare('SELECT channel, stage, COUNT(*) AS count FROM funnel GROUP BY channel, stage').all();
-        return { orders, funnel, summary: ordersSummary(orders), seller: get('seller'), economy: get('economy') };
+        const saved = get('economy');
+        const economy = Object.fromEntries(economyFields.map((field) => [field, saved[field]]));
+        return { orders, funnel, summary: ordersSummary(orders, economy), seller: get('seller'), economy };
       }
       if (area === 'admin') {
         const orders = allOrders().map(present);
@@ -533,7 +535,7 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
       }
       if (area === 'merchant' && key && action) return merchantAction(matchingOrder(getOrder(key)), action);
       if (area === 'economy') {
-        const values = Object.fromEntries(Object.keys(get('economy')).map((field) => [field, integer(body[field], 0, 1000000000)]));
+        const values = Object.fromEntries(economyFields.map((field) => [field, integer(body[field], 0, 1000000000)]));
         put('economy', values);
         return values;
       }

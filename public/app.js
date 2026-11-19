@@ -488,15 +488,13 @@ function orderDetail(id) {
 
 function analytics() {
   const { summary: a, economy: e } = state.merchant;
-  const economyFields = [['externalCount', 'Число внешних продаж', 1], ['externalAmount', 'Оборот внешних продаж, ₽', 100], ['productCosts', 'Себестоимость, ₽', 100], ['promotion', 'Продвижение продавца, ₽', 100], ['vkCosts', 'Расходы VK, ₽', 100]];
+  const economyFields = [['externalCount', 'Число внешних продаж', 1], ['externalAmount', 'Оборот внешних продаж, ₽', 100], ['productCosts', 'Себестоимость, ₽', 100], ['promotion', 'Продвижение продавца, ₽', 100]];
   return `${heading('Аналитика', 'Сводка по заказам демо-магазина')}
-    <div class="metrics three">
+    <div class="metrics four">
       ${tile('Доля оплат через VK', pct(a.share), 'По числу продаж после возвратов', 'card')}
       ${tile('Доля оборота через VK', pct(a.turnoverShare), 'С учётом внешних продаж', 'chart')}
       ${tile('Конверсия в оплату VK', pct(a.conversion), a.confirmed + ' оплат / ' + a.total + ' заказов', 'check')}
       ${tile('Доход продавца', rub(a.sellerIncome), 'До налогов, после затрат', 'wallet')}
-      ${tile('Комиссионная выручка VK', rub(a.vk), '', 'tag')}
-      ${tile('Доход VK после расходов', rub(a.vkIncome), 'Комиссии ' + rub(a.vk) + ' минус расходы VK ' + rub(e.vkCosts), 'chart')}
     </div>
     ${funnelPanel(state.merchant.funnel, state.merchant.orders)}
     <div class="two-column analytics-grid"><section class="panel section"><h2>Итоги операций</h2>
