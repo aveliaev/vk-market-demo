@@ -402,7 +402,7 @@ img.shop-avatar { object-fit: cover; border-radius: 50%; }
 .tour-marker { mix-blend-mode: multiply; position: fixed; pointer-events: none; object-fit: fill; z-index: 1; mask-image: conic-gradient(from -45deg, #000 0deg var(--marker-angle), transparent var(--marker-angle) 360deg); animation: draw-marker 1.3s cubic-bezier(.3,.1,.4,1) both; }
 @property --marker-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 @keyframes draw-marker { from { --marker-angle: 0deg; } to { --marker-angle: 360deg; } }
-.tour-card { position: fixed; z-index: 2; width: 340px; max-height: calc(100dvh - 90px); overflow: auto; padding: 18px; border: 1px solid #ffffffed; border-radius: 20px; background: #ffffffeb; -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 10px 32px #172a481a, inset 0 0 0 1px #ffffff80; color: #202b3b; outline: none; }
+.tour-card { position: fixed; z-index: 2; width: 340px; max-height: calc(100dvh - 90px); overflow: auto; padding: 18px; border: 1px solid #ffffffcc; border-radius: 20px; background: rgb(255 255 255 / 80%); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: 0 10px 32px #172a481a, inset 0 0 0 1px #ffffff80; color: #202b3b; outline: none; }
 .tour-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #4f5b6b; font-size: 11px; font-weight: 500; }
 .tour-card-head > span { padding: 5px 10px; border-radius: 20px; background: #ffffff80; }
 .tour-card-head button { flex: none; width: 26px; height: 26px; border: 0; border-radius: 50%; background: transparent; color: #4f5b6b; cursor: pointer; font-size: 23px; line-height: 1; }

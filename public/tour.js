@@ -32,6 +32,57 @@ function markerShape(element) {
   return width / height < 1.3 ? 'circle' : 'frame';
 }
 
+export function tourArrowPath(c, r) {
+  const centerX = r.left + r.width / 2;
+  const centerY = r.top + r.height / 2;
+  const edgeX = Math.max(c.left + 18, Math.min(c.right - 18, centerX));
+  const edgeY = Math.max(c.top + 18, Math.min(c.bottom - 18, centerY));
+  let start, end, direction;
+  if (c.left >= r.right) {
+    start = [c.left - 5, edgeY];
+    end = [r.right + 5, centerY];
+    direction = [-1, 0];
+  } else if (c.right <= r.left) {
+    start = [c.right + 5, edgeY];
+    end = [r.left - 5, centerY];
+    direction = [1, 0];
+  } else if (c.top >= r.bottom) {
+    start = [edgeX, c.top - 5];
+    end = [centerX, r.bottom + 5];
+    direction = [0, -1];
+  } else if (c.bottom <= r.top) {
+    start = [edgeX, c.bottom + 5];
+    end = [centerX, r.top - 5];
+    direction = [0, 1];
+  } else {
+    return '';
+  }
+  let departure = direction;
+  // For a target above or below a neighbouring card, turn once from the
+  // nearest horizontal edge instead of squeezing an S-curve into the gap.
+  if (direction[0] && centerY > c.bottom + 18) {
+    start = [direction[0] > 0 ? c.right - 18 : c.left + 18, c.bottom + 5];
+    departure = [0, 1];
+  } else if (direction[0] && centerY < c.top - 18) {
+    start = [direction[0] > 0 ? c.right - 18 : c.left + 18, c.top - 5];
+    departure = [0, -1];
+  }
+  const [sx, sy] = start;
+  const [ex, ey] = end;
+  const [dx, dy] = direction;
+  const bendX = Math.min(72, Math.abs(ex - sx) * .45);
+  const bendY = Math.min(72, Math.abs(ey - sy) * .45);
+  const c1x = sx + departure[0] * bendX;
+  const c1y = sy + departure[1] * bendY;
+  const c2x = ex - dx * bendX;
+  const c2y = ey - dy * bendY;
+  const angle = Math.atan2(dy, dx);
+  const wing = (offset) => [ex - 11 * Math.cos(angle+offset), ey - 11 * Math.sin(angle+offset)];
+  const a = wing(.5);
+  const b = wing(-.5);
+  return `M ${sx} ${sy} C ${c1x} ${c1y} ${c2x} ${c2y} ${ex} ${ey} M ${a[0]} ${a[1]} L ${ex} ${ey} L ${b[0]} ${b[1]}`;
+}
+
 export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
   const root = document.createElement('div');
   root.className = 'feature-tour';
@@ -128,51 +179,6 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     return field === 'order' ? preview.orders[key] : preview[field];
   }
 
-  function pointArrow(card, ring, path) {
-    if (!path) return;
-    const c = card.getBoundingClientRect();
-    const r = ring.getBoundingClientRect();
-    const centerX = r.left + r.width / 2;
-    const centerY = r.top + r.height / 2;
-    const edgeX = Math.max(c.left + 18, Math.min(c.right - 18, centerX));
-    const edgeY = Math.max(c.top + 18, Math.min(c.bottom - 18, centerY));
-    let start, end, direction;
-    if (c.left >= r.right) {
-      start = [c.left - 5, edgeY];
-      end = [r.right + 5, centerY];
-      direction = [-1, 0];
-    } else if (c.right <= r.left) {
-      start = [c.right + 5, edgeY];
-      end = [r.left - 5, centerY];
-      direction = [1, 0];
-    } else if (c.top >= r.bottom) {
-      start = [edgeX, c.top - 5];
-      end = [centerX, r.bottom + 5];
-      direction = [0, -1];
-    } else if (c.bottom <= r.top) {
-      start = [edgeX, c.bottom + 5];
-      end = [centerX, r.top - 5];
-      direction = [0, 1];
-    } else {
-      path.setAttribute('d', '');
-      return;
-    }
-    const [sx, sy] = start;
-    const [ex, ey] = end;
-    const [dx, dy] = direction;
-    const gap = Math.abs((ex - sx) * dx + (ey - sy) * dy);
-    const bend = Math.min(36, gap / 2);
-    const c1x = sx + dx * bend;
-    const c1y = sy + dy * bend;
-    const c2x = ex - dx * bend;
-    const c2y = ey - dy * bend;
-    const angle = Math.atan2(dy, dx);
-    const wing = (offset) => [ex - 11 * Math.cos(angle+offset), ey - 11 * Math.sin(angle+offset)];
-    const a = wing(.5);
-    const b = wing(-.5);
-    path.setAttribute('d', `M ${sx} ${sy} C ${c1x} ${c1y} ${c2x} ${c2y} ${ex} ${ey} M ${a[0]} ${a[1]} L ${ex} ${ey} L ${b[0]} ${b[1]}`);
-  }
-
   function place() {
     if ((!active && !welcoming) || !targets.length || targets.some((target) => !target.isConnected)) return;
     const rings = [...root.querySelectorAll('.tour-marker')];
@@ -206,7 +212,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     const [x,y] = positions.find(fits) ?? [innerWidth - width - 20, innerHeight - height - 20];
     card.style.left = Math.max(16,x) + 'px';
     card.style.top = Math.max(70,y) + 'px';
-    rings.forEach((ring, i) => pointArrow(card, ring, paths[i]));
+    rings.forEach((ring, i) => paths[i]?.setAttribute('d', tourArrowPath(card.getBoundingClientRect(), ring.getBoundingClientRect())));
   }
 
   async function show(next) {
