@@ -1,3 +1,5 @@
+import { createFeatureTour } from './tour.js';
+
 const main = document.querySelector('main');
 const dialog = document.querySelector('#dialog');
 const paths = {
@@ -67,6 +69,22 @@ let state = { quantity: 2, variant: 0, method: 'card', busy: false };
 let poll;
 let toastTimer;
 let routeVersion = 0;
+let tourRestore;
+const featureTour = createFeatureTour({
+  api, state,
+  onStart: () => {
+    tourRestore = {filters: {...filters}, item: state.item, variant: state.variant, quantity: state.quantity};
+    Object.assign(filters, { search: '', category: '', min: '', max: '', sort: 'default' });
+  },
+  onEnd: () => {
+    Object.assign(filters, tourRestore.filters);
+    Object.assign(state, {item: tourRestore.item, variant: tourRestore.variant, quantity: tourRestore.quantity});
+  },
+  navigate: async (path) => {
+    history.replaceState(null, '', '#/' + path);
+    await load({focus: false});
+  },
+});
 
 const navigation = [
   ['Покупатель', [['shop', 'shop', 'Витрина'], ['cart','wallet','Корзина'], ['purchases','receipt','Мои заказы'], ['chat', 'chat', 'Переписка']]],
@@ -626,6 +644,7 @@ function render(page = current()) {
 }
 
 function needsPoll() {
+  if (featureTour.active) return false;
   const o = state.order;
   return current() === 'checkout' && (o?.status === 'pending' && o.bankConfirmed ||
     o?.status === 'paid' && ['requested', 'processing'].includes(o.refund));
@@ -667,6 +686,8 @@ async function load({ focus = true } = {}) {
     };
     const endpoint = { faq: 'faq/' + encodeURIComponent(key ?? ''), order: 'checkout/' + encodeURIComponent(key ?? ''), chatOrders: 'chat' };
     const entries = await Promise.all((Object.hasOwn(query, path) ? query[path] : []).map(async (field) => {
+      const preview = featureTour.dataFor(field, key);
+      if (preview !== undefined) return [field, preview];
       if (field === 'order' && path === 'checkout') return [field, await api(endpoint.order + '/visit', {})];
       return [field, await api(endpoint[field] ?? field)];
     }));
@@ -678,7 +699,7 @@ async function load({ focus = true } = {}) {
         state.variant = 0;
       }
       state.item = state.store.catalog.find((item) => item.id === key);
-      if (state.item) await api('view/' + key, {});
+      if (state.item && !featureTour.active) await api('view/' + key, {});
       if (version !== routeVersion) return;
     }
     if (path === 'checkout' && state.order.method) state.method = state.order.method;

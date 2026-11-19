@@ -356,3 +356,28 @@ img.shop-avatar { object-fit: cover; border-radius: 50%; }
 .post-product strong, .post-product small { display: block; }
 .post-product small { margin-top: 5px; color: var(--muted); }
 .post-product > .icon { margin-left: auto; }
+
+.tour-trigger { margin-left: auto; padding: 8px 13px; border: 1px solid #d8e2f2; border-radius: 8px; background: #fff; color: #245b9a; font: inherit; font-size: .85rem; font-weight: 650; cursor: pointer; }
+.tour-trigger:hover { background: #f1f6ff; }
+.tour-trigger + .demo-label { margin-left: 12px; }
+.feature-tour { position: fixed; z-index: 100; inset: 0; }
+.tour-shade { position: absolute; inset: 0; background: #16253612; }
+.tour-marker { mix-blend-mode: multiply; position: fixed; pointer-events: none; object-fit: fill; z-index: 1; mask-image: conic-gradient(from -45deg, #000 0deg var(--marker-angle), transparent var(--marker-angle) 360deg); animation: draw-marker 1.3s cubic-bezier(.3,.1,.4,1) both; }
+@property --marker-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes draw-marker { from { --marker-angle: 0deg; } to { --marker-angle: 360deg; } }
+.tour-card { position: fixed; z-index: 2; width: 330px; max-height: calc(100dvh - 90px); overflow: auto; padding: 18px; border: 1px solid #edcabc; border-radius: 16px; background: #fffcf7; box-shadow: 0 12px 48px #172a4826; color: #253249; outline: none; }
+.tour-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #94634f; font-size: 12px; font-weight: 650; }
+.tour-card-head button { flex: none; width: 28px; height: 28px; border: 0; border-radius: 50%; background: #f5eae1; color: #775347; cursor: pointer; font-size: 22px; line-height: 1; }
+.tour-card h2 { margin: 12px 0 7px; font-size: 19px; line-height: 1.25; letter-spacing: -.02em; }
+.tour-card p { margin: 0; font-size: 14px; line-height: 1.5; color: #536176; }
+.tour-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; gap: 12px; }
+.tour-controls button { border: 0; border-radius: 9px; padding: 10px 14px; font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; color: #675749; background: #f2eae0; }
+.tour-controls .tour-next { color: white; background: #b84b35; }
+.tour-controls .tour-next:hover { background: #9e3f2c; }
+.tour-controls button:disabled { opacity: .45; cursor: default; }
+.tour-card button:focus-visible { outline: 3px solid #3678bc; outline-offset: 3px; }
+.tour-card > small { display: block; margin-top: 13px; font-size: 11px; color: #8b8178; }
+.tour-loading { position: absolute; inset: 40% 0 auto; text-align: center; color: #334b69; }
+@media (prefers-reduced-motion: reduce) { .tour-marker { animation: none; --marker-angle: 360deg; } }
+
+.feature-tour:not(.tour-positioned) .tour-marker, .feature-tour:not(.tour-positioned) .tour-card { visibility: hidden; }
