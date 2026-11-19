@@ -86,32 +86,45 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     if (!path) return;
     const c = card.getBoundingClientRect();
     const r = ring.getBoundingClientRect();
-    let start, end;
+    const centerX = r.left + r.width / 2;
+    const centerY = r.top + r.height / 2;
+    const edgeX = Math.max(c.left + 18, Math.min(c.right - 18, centerX));
+    const edgeY = Math.max(c.top + 18, Math.min(c.bottom - 18, centerY));
+    let start, end, direction;
     if (c.left >= r.right) {
-      start = [c.left - 5, c.top + c.height / 2];
-      end = [r.right + 5, r.top + r.height / 2];
+      start = [c.left - 5, edgeY];
+      end = [r.right + 5, centerY];
+      direction = [-1, 0];
     } else if (c.right <= r.left) {
-      start = [c.right + 5, c.top + c.height / 2];
-      end = [r.left - 5, r.top + r.height / 2];
+      start = [c.right + 5, edgeY];
+      end = [r.left - 5, centerY];
+      direction = [1, 0];
     } else if (c.top >= r.bottom) {
-      start = [Math.max(c.left + 20, Math.min(c.right - 20, r.left + r.width / 2)), c.top - 5];
-      end = [r.left + r.width / 2, r.bottom + 5];
+      start = [edgeX, c.top - 5];
+      end = [centerX, r.bottom + 5];
+      direction = [0, -1];
     } else if (c.bottom <= r.top) {
-      start = [Math.max(c.left + 20, Math.min(c.right - 20, r.left + r.width / 2)), c.bottom + 5];
-      end = [r.left + r.width / 2, r.top - 5];
+      start = [edgeX, c.bottom + 5];
+      end = [centerX, r.top - 5];
+      direction = [0, 1];
     } else {
       path.setAttribute('d', '');
       return;
     }
     const [sx, sy] = start;
     const [ex, ey] = end;
-    const cx = (sx + ex) / 2 + (Math.abs(sx-ex) < Math.abs(sy-ey) ? 16 : 0);
-    const cy = (sy + ey) / 2 + (Math.abs(sx-ex) >= Math.abs(sy-ey) ? -16 : 0);
-    const angle = Math.atan2(ey-cy, ex-cx);
+    const [dx, dy] = direction;
+    const gap = Math.abs((ex - sx) * dx + (ey - sy) * dy);
+    const bend = Math.min(36, gap / 2);
+    const c1x = sx + dx * bend;
+    const c1y = sy + dy * bend;
+    const c2x = ex - dx * bend;
+    const c2y = ey - dy * bend;
+    const angle = Math.atan2(dy, dx);
     const wing = (offset) => [ex - 11 * Math.cos(angle+offset), ey - 11 * Math.sin(angle+offset)];
     const a = wing(.5);
     const b = wing(-.5);
-    path.setAttribute('d', `M ${sx} ${sy} Q ${cx} ${cy} ${ex} ${ey} M ${a[0]} ${a[1]} L ${ex} ${ey} L ${b[0]} ${b[1]}`);
+    path.setAttribute('d', `M ${sx} ${sy} C ${c1x} ${c1y} ${c2x} ${c2y} ${ex} ${ey} M ${a[0]} ${a[1]} L ${ex} ${ey} L ${b[0]} ${b[1]}`);
   }
 
   function place() {
