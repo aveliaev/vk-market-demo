@@ -41,7 +41,7 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
   const save = (order) => db.prepare('INSERT INTO orders VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET data=excluded.data').run(order.id, order.token, JSON.stringify(order));
   const getOrder = (id) => JSON.parse(db.prepare('SELECT data FROM orders WHERE id = ?').get(id)?.data ?? 'null');
   const getBuyerOrder = (token) => JSON.parse(db.prepare('SELECT data FROM orders WHERE token = ?').get(token)?.data ?? 'null');
-  const allOrders = () => db.prepare('SELECT data FROM orders ORDER BY rowid DESC').all().map(({ data }) => JSON.parse(data));
+  const allOrders = () => db.prepare("SELECT data FROM orders ORDER BY json_extract(data, '$.created') DESC, rowid DESC").all().map(({ data }) => JSON.parse(data));
   const charge = (amount, basisPoints) => Math.round(amount * basisPoints / 10000);
   const priceFor = (base) => Math.round(base * 10000 / (10000 - VK_RATE));
   const timestamp = () => Date.now();
@@ -86,8 +86,8 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
     return { id };
   }
 
-  function record(name, orderId = null, data = {}, id = randomUUID()) {
-    db.prepare('INSERT INTO events VALUES (?, ?, ?, ?, ?)').run(id, timestamp(), orderId, name, JSON.stringify(data));
+  function record(name, orderId = null, data = {}, id = randomUUID(), created = timestamp()) {
+    db.prepare('INSERT INTO events VALUES (?, ?, ?, ?, ?)').run(id, created, orderId, name, JSON.stringify(data));
   }
 
   function transaction(work) {
@@ -102,18 +102,18 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
     }
   }
 
-  function newOrder({ lines = null, productId = null, questionId = null, title, variant, quantity, unit, total = unit * quantity, shipping = 0, fulfillment = PICKUP, ready = null, expires = timestamp() + DAY, source }) {
+  function newOrder({ lines = null, productId = null, questionId = null, title, variant, quantity, unit, total = unit * quantity, shipping = 0, fulfillment = PICKUP, ready = null, created = timestamp(), expires = created + DAY, source }) {
     const number = get('nextOrder') ?? 1042;
     put('nextOrder', number + 1);
     const order = {
       id: 'ФР-' + number, token: makeToken(),
       lines, productId, questionId, title, variant, quantity, unit, total, shipping, fulfillment, ready, expires, source,
-      amount: total + shipping, created: timestamp(), status: 'unpaid',
+      amount: total + shipping, created, status: 'unpaid',
       receipt: 'missing', payout: 'waiting', fulfillmentStatus: 'new',
       refund: 'none', method: null, paymentId: null, bankConfirmed: false,
     };
     save(order);
-    record('order.created', order.id, { source });
+    record('order.created', order.id, { source }, randomUUID(), created);
     return order;
   }
 
@@ -166,6 +166,52 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
     unpaid: 'Ожидает оплаты', pending: 'Проверяем оплату', paid: 'Оплачен', cancelled: 'Отменён',
     expired: 'Срок истёк', refunded: 'Возвращён',
   };
+
+  // Install the sample history once, including in stores saved with earlier versions.
+  transaction(() => {
+    if (get('sampleHistoryV1')) return;
+    const products = catalog();
+    const history = [
+      { days: 26, name: 'Анна К.', item: 'cups', friend: true, text: 'Брала молочную кружку для утреннего кофе. Ручка удобная даже для большой ладони.' },
+      { days: 24, name: 'Михаил Р.', item: 'jug', text: 'Для двух чашек фильтра объёма хватает. Носик льёт аккуратно.' },
+      { days: 22, name: 'Демо-покупатель', item: 'linen', quantity: 2 },
+      { days: 19, name: 'Софья М.', item: 'vase', text: 'С одной веткой эвкалипта смотрится отлично. Цвет чуть теплее, чем на моём экране.' },
+      { days: 17, name: 'Илья С.', item: 'cups', variant: 1, friend: true, text: 'Забрал в мастерской. Кобальтовая глазурь вживую глубже, чем на фото.' },
+      { days: 15, name: 'Дарья Н.', item: 'bowl', quantity: 2, text: 'Взяла пару для завтраков. Одна пиала чуть темнее другой, мне это нравится.' },
+      { days: 13, name: 'Анна К.', item: 'candles', text: 'Обычные тонкие свечи подошли. Подсвечник стоит устойчиво.' },
+      { days: 10, name: 'Лев П.', item: 'linen', text: 'После стирки лён стал мягче. Полоска сохранила цвет.' },
+      { days: 8, name: 'Кира Б.', item: 'cups', quantity: 2, text: 'Попросила упаковать две кружки отдельно для подарков. Всё подготовили к самовывозу.' },
+      { days: 6, name: 'Демо-покупатель', item: 'bowl' },
+      { days: 2, name: 'Михаил Р.', item: 'vase', status: 'ready' },
+      { days: 1, name: 'Полина В.', item: 'jug', status: 'new' },
+    ];
+    history.forEach((sample, index) => {
+      const item = products.find((entry) => entry.id === sample.item);
+      const created = timestamp() - sample.days * DAY;
+      const order = newOrder({ created, productId: item.id, title: item.title, variant: item.variants[sample.variant ?? 0],
+        quantity: sample.quantity ?? 1, unit: item.price, source: 'store' });
+      const fulfillmentStatus = sample.status ?? 'delivered';
+      Object.assign(order, { buyerName: sample.name, friendPurchase: sample.friend ?? false, review: sample.text,
+        fulfillmentStatus, status: 'paid', method: ['card', 'sbp', 'wallet'][index % 3],
+        paymentId: 'test_' + randomUUID(), paidAt: created + 60000, bankConfirmed: true, receipt: 'issued',
+        payout: fulfillmentStatus === 'delivered' ? 'sent' : 'scheduled' });
+      save(order);
+      const buyer = sample.name === 'Демо-покупатель' ? 'local-demo' : 'sample:' + sample.name;
+      attachOrder(order, buyer);
+      markStage(buyer, 'store', 'view');
+      if (order.quantity > 1) markStage(buyer, 'store', 'cart');
+      markStage(buyer, 'store', 'paid');
+      record('payment.succeeded', order.id, { amount: order.amount, paymentId: order.paymentId }, randomUUID(), order.paidAt);
+    });
+    for (const [id, item, variant, question, answer] of [
+      ['cups-volume', 'cups', 'Молочная', 'Какой объём у кружки?', 'В кружку помещается 300 мл.'],
+      ['linen-size', 'linen', 'Индиго', 'Какого размера полотенце?', 'Размер одного полотенца — 45 × 65 см.'],
+      ['plate-pair', 'plate', 'Кобальтовая', 'Можно заказать пару тарелок с одинаковой росписью?', 'Да, согласуем рисунок в переписке. У ручной росписи возможны небольшие различия.'],
+    ]) {
+      db.prepare('INSERT INTO questions VALUES (?, ?, ?, ?, ?, ?, ?)').run('sample-' + id, item, variant, question, answer, question, answer);
+    }
+    put('sampleHistoryV1', true);
+  });
 
   function effectiveStatus(order) {
     return order.expires <= timestamp() && (order.status === 'unpaid' || (order.status === 'pending' && !order.bankConfirmed))
@@ -436,9 +482,15 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
     const [area, key, action] = parts;
     if (method === 'GET') {
       if (area === 'cart') return readCart(buyer);
-      if (area === 'purchases') return db.prepare('SELECT data FROM orders JOIN buyer_orders ON orders.id = buyer_orders.order_id WHERE buyer = ? ORDER BY orders.rowid DESC').all(buyer).map((entry) => present(JSON.parse(entry.data)));
+      if (area === 'purchases') return db.prepare("SELECT data FROM orders JOIN buyer_orders ON orders.id = buyer_orders.order_id WHERE buyer = ? ORDER BY json_extract(data, '$.created') DESC, orders.rowid DESC").all(buyer).map((entry) => present(JSON.parse(entry.data)));
       if (area === 'store') {
-        return { catalog: catalog(), seller: SELLER, product: PRODUCT, base: get('base'), price: priceFor(get('base')), variants: VARIANTS, ready: readyDate(), eligible: eligible(), pickup: PICKUP, rates: RATES, vkRate: VK_RATE };
+        const activity = allOrders().filter((order) => order.status === 'paid' && order.buyerName);
+        const items = catalog().map((item) => {
+          const purchases = activity.filter((order) => order.productId === item.id);
+          return { ...item, friends: purchases.filter((o) => o.friendPurchase).map((o) => o.buyerName),
+            reviews: purchases.filter((o) => o.review).map((o) => ({ name: o.buyerName, text: o.review, variant: o.variant, date: o.paidAt })) };
+        });
+        return { catalog: items, seller: SELLER, product: PRODUCT, base: get('base'), price: priceFor(get('base')), variants: VARIANTS, ready: readyDate(), eligible: eligible(), pickup: PICKUP, rates: RATES, vkRate: VK_RATE };
       }
       if (area === 'faq') return db.prepare('SELECT public_question AS question, public_answer AS answer FROM questions WHERE product_id = ? AND public_question IS NOT NULL ORDER BY rowid DESC').all(key || '');
       if (area === 'questions') return db.prepare('SELECT * FROM questions ORDER BY rowid DESC').all();
@@ -454,7 +506,7 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
       }
       if (area === 'admin') {
         const orders = allOrders().map(present);
-        const events = db.prepare('SELECT * FROM events ORDER BY rowid DESC LIMIT 80').all();
+        const events = db.prepare('SELECT * FROM events ORDER BY created DESC, rowid DESC LIMIT 80').all();
         const paid = orders.filter((order) => order.paidAt);
         const paymentIds = new Set(paid.map((order) => order.paymentId));
         const confirmed = db.prepare("SELECT order_id, data FROM events WHERE name = 'payment.succeeded'").all();

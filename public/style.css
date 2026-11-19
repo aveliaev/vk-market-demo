@@ -318,3 +318,14 @@ td .amber-text { color: #865315; }
 .funnel-steps div { border-left:3px solid #92b7df; background:#f3f7fc; padding:12px; }
 .funnel-steps span,.funnel-steps strong { display:block; }
 .funnel-steps strong { font-size:1.5rem; margin-top:6px; }
+
+.friends-note { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; color: #456280; }
+.friends-note span { font-size: .79rem; line-height: 1.3; }
+.friend-avatars { display: inline-flex; flex: none; padding-right: 3px; }
+.friend-avatars i { display: grid; place-items: center; width: 23px; height: 23px; margin-right: -3px; border: 2px solid white; border-radius: 50%; background: #dfebff; color: #345b87; font: 650 .68rem/1 sans-serif; }
+.friend-avatars i:nth-child(2) { color: #765041; background: #f4dfd2; }
+.buyer-reviews { margin-top: 14px; }
+.buyer-reviews h2 small, .buyer-reviews article small { color: var(--muted); font-weight: 400; }
+.buyer-reviews article { padding: 13px 0; border-top: 1px solid var(--border); }
+.buyer-reviews article small { margin-left: 10px; }
+.buyer-reviews article p { margin: 6px 0 0; }

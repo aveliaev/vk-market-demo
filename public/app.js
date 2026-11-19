@@ -114,11 +114,26 @@ function matchingProducts() {
   return items;
 }
 
+function friendsNote(item) {
+  if (!item.friends.length) return '';
+  const names = item.friends.map(safe);
+  return `<small class="friends-note"><b class="friend-avatars" aria-hidden="true">${names.map((name) => `<i>${name[0]}</i>`).join('')}</b>
+    <span>Купили друзья · ${names.join(', ')}</span></small>`;
+}
+
+function buyerReviews(item) {
+  if (!item.reviews.length) return '';
+  return `<section class="panel section buyer-reviews"><h2>Отзывы покупателей <small>${item.reviews.length}</small></h2>
+    ${item.reviews.map((review) => `<article><strong>${safe(review.name)}</strong><small>${safe(review.variant)} · покупка ${date(review.date)}</small>
+      <p>${safe(review.text)}</p></article>`).join('')}</section>`;
+}
+
 function catalogCards(items) {
   return items.map((item) => `<a class="catalog-card" href="#/product/${item.id}">
     <img src="${item.image}" alt="" width="300" height="300">
     <strong>${rub(item.price)}</strong><span>${safe(item.title)}</span>
     <small>${safe(item.category)} · ${item.leadDays ? 'На заказ' : 'В наличии'}</small>
+    ${friendsNote(item)}
   </a>`).join('') || '<p class="catalog-empty">Товаров с такими параметрами нет. Попробуйте изменить поиск или фильтры.</p>';
 }
 
@@ -154,6 +169,7 @@ function product() {
     <div class="product-info">
       ${badge(item.leadDays ? 'На заказ' : 'В наличии', item.leadDays ? 'blue' : 'green')}
       <h2>${safe(item.title)}</h2>
+      ${friendsNote(item)}
       <p class="product-description">${safe(item.description)}</p>
       <fieldset class="colors"><legend>Цвет</legend><div class="chips">${item.variants.map((name, i) => `<button type="button" class="chip ${variant === i ? 'selected' : ''}" data-action="variant:${i}" aria-pressed="${variant === i}">${name}</button>`).join('')}</div></fieldset>
       <div class="purchase-control"><div><div class="product-price">${rub(item.price)}</div><div class="muted">за штуку</div></div>
@@ -173,6 +189,7 @@ function product() {
     <div class="panel feature"><div class="feature-icon">${icon('calendar')}</div><div><strong>${item.leadDays ? 'Изготовление до ' + item.leadDays + ' дней' : 'Бесплатный самовывоз'}</strong><span>${item.leadDays ? 'Детали и дату согласуйте в переписке' : 'Время получения согласуйте с продавцом'}</span></div></div>
     <div class="panel feature"><div class="feature-icon">${icon('shield')}</div><div><strong>Карта, СБП и VK Кошелёк</strong><span>Оплата на экране заказа</span></div></div>
   </div>
+  ${buyerReviews(item)}
   ${productQuestions()}`;
 }
 
@@ -330,9 +347,10 @@ function cartPage() {
 
 function purchases() {
   const orders = state.purchases;
-  return `${heading('Мои заказы', 'Покупки, оформленные в этом браузере')}
+  return `${heading('Мои заказы', 'История покупок в этом браузере')}
     ${orders.length ? orders.map((o) => `<article class="panel section purchase-record">
       <div class="registry-head"><h2><a class="order-link" href="#/checkout/${o.token}">Заказ ${safe(o.id)}</a></h2>${badge(o.statusLabel, o.status === 'paid' ? 'green' : '')}</div>
+      ${o.buyerName ? `<p class="muted">Покупка демопрофиля · ${date(o.created)}</p>` : ''}
       ${orderLines(o)}${row('Итого',rub(o.amount),'sum')}
       ${row('Получение', safe(o.fulfillment))}${o.source === 'chat' && o.ready ? row('Согласованная дата', date(o.ready)) : ''}${o.status === 'paid' ? row('Исполнение', o.fulfillmentStatus === 'ready' && o.fulfillment.startsWith('Самовывоз') ? 'Готов к самовывозу' : fulfillmentLabel[o.fulfillmentStatus]) : ''}
       <div class="inline-actions"><a class="btn secondary" href="#/checkout/${o.token}">Открыть заказ</a>
@@ -454,7 +472,7 @@ function orders() {
       ${tile('К перечислению', rub(summary.scheduled), 'Демо-выплаты', 'wallet')}${tile('Перечислено', rub(summary.payouts), 'До налогов', 'check')}</div>
     <section class="panel registry"><div class="registry-head"><h2>Все заказы</h2>${badge(String(orders.length), 'blue')}</div>
       <div class="table-scroll" tabindex="0" role="region" aria-label="Таблица заказов"><table><thead><tr><th>Заказ</th><th>Оплата</th><th>Сумма</th><th>Комиссия VK</th><th>Эквайринг</th><th>К выплате</th><th>Исполнение</th></tr></thead><tbody>
-        ${orders.map((o) => `<tr><td><a class="order-link" href="#/orders/${encodeURIComponent(o.id)}">${safe(o.id)}</a><small>${o.source === 'chat' ? 'Переписка' : o.source === 'cart' ? 'Корзина' : 'Витрина'} · ${datetime(o.created)}</small></td>
+        ${orders.map((o) => `<tr><td><a class="order-link" href="#/orders/${encodeURIComponent(o.id)}">${safe(o.id)}</a><small>${o.buyerName ? safe(o.buyerName) + ' · ' : ''}${o.source === 'chat' ? 'Переписка' : o.source === 'cart' ? 'Корзина' : 'Витрина'} · ${datetime(o.created)}</small></td>
           <td>${badge(o.statusLabel, o.status === 'paid' ? 'green' : o.status === 'pending' ? 'blue' : '')}${o.refund === 'requested' ? '<small class="amber-text">Запрошен возврат</small>' : ''}</td>
           <td>${rub(o.amount)}</td><td>${o.paidAt ? rub(o.status === 'refunded' ? 0 : o.fees.vk) : '—'}</td><td>${o.paidAt ? rub(o.fees.acquiring) : '—'}</td><td>${o.paidAt ? rub(o.status === 'refunded' ? 0 : o.fees.net) : '—'}<small>${payoutLabel[o.payout]}</small></td>
           <td>${fulfillmentLabel[o.fulfillmentStatus]}</td></tr>`).join('')}
