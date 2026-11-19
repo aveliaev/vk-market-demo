@@ -20,6 +20,18 @@ const steps = [
   ['post', '.post-suggestion', 'Пост помогает перейти к покупке', 'Продавцу предлагаем прикрепить готовый товар, когда каталог и оплата подключены.'],
 ];
 
+const markerAssets = {
+  pill: './assets/tour-marker-pill.png',
+  circle: './assets/tour-marker-circle.png',
+  frame: './assets/tour-marker-frame.png',
+};
+
+function markerShape(element) {
+  const {width, height} = element.getBoundingClientRect();
+  if (height <= 80 && width / height >= 3.5) return 'pill';
+  return width / height < 1.3 ? 'circle' : 'frame';
+}
+
 export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
   const root = document.createElement('div');
   root.className = 'feature-tour';
@@ -69,18 +81,51 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     return field === 'order' ? preview.orders[key] : preview[field];
   }
 
+  function pointArrow(card, ring) {
+    const path = root.querySelector('.tour-arrow path');
+    if (!path) return;
+    const c = card.getBoundingClientRect();
+    const r = ring.getBoundingClientRect();
+    let start, end;
+    if (c.left >= r.right) {
+      start = [c.left - 5, c.top + c.height / 2];
+      end = [r.right + 5, r.top + r.height / 2];
+    } else if (c.right <= r.left) {
+      start = [c.right + 5, c.top + c.height / 2];
+      end = [r.left - 5, r.top + r.height / 2];
+    } else if (c.top >= r.bottom) {
+      start = [Math.max(c.left + 20, Math.min(c.right - 20, r.left + r.width / 2)), c.top - 5];
+      end = [r.left + r.width / 2, r.bottom + 5];
+    } else if (c.bottom <= r.top) {
+      start = [Math.max(c.left + 20, Math.min(c.right - 20, r.left + r.width / 2)), c.bottom + 5];
+      end = [r.left + r.width / 2, r.top - 5];
+    } else {
+      path.setAttribute('d', '');
+      return;
+    }
+    const [sx, sy] = start;
+    const [ex, ey] = end;
+    const cx = (sx + ex) / 2 + (Math.abs(sx-ex) < Math.abs(sy-ey) ? 16 : 0);
+    const cy = (sy + ey) / 2 + (Math.abs(sx-ex) >= Math.abs(sy-ey) ? -16 : 0);
+    const angle = Math.atan2(ey-cy, ex-cx);
+    const wing = (offset) => [ex - 8 * Math.cos(angle+offset), ey - 8 * Math.sin(angle+offset)];
+    const a = wing(.5);
+    const b = wing(-.5);
+    path.setAttribute('d', `M ${sx} ${sy} Q ${cx} ${cy} ${ex} ${ey} M ${a[0]} ${a[1]} L ${ex} ${ey} L ${b[0]} ${b[1]}`);
+  }
+
   function place() {
     if (!active || !target?.isConnected) return;
     const ring = root.querySelector('.tour-marker');
     const card = root.querySelector('.tour-card');
     if (!ring || !card) return;
     const rect = target.getBoundingClientRect();
-    const padX = 20;
-    const padY = 16;
+    const padX = Math.max(18, rect.width * .05);
+    const padY = Math.max(16, rect.height * .05);
     Object.assign(ring.style, {left: rect.left - padX + 'px', top: rect.top - padY + 'px', width: rect.width + 2 * padX + 'px', height: rect.height + 2 * padY + 'px'});
     const width = card.offsetWidth;
     const height = card.offsetHeight;
-    const gap = 30;
+    const gap = Math.max(padX, padY) + 48;
     const positions = [
       [rect.right + gap, rect.top],
       [rect.left - width - gap, rect.top],
@@ -91,6 +136,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     const [x,y] = positions.find(fits) ?? [innerWidth - width - 20, innerHeight - height - 20];
     card.style.left = Math.max(16,x) + 'px';
     card.style.top = Math.max(70,y) + 'px';
+    pointArrow(card, ring);
   }
 
   async function show(next) {
@@ -109,13 +155,14 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
       document.querySelector('#cashback-preview').hidden = false;
     }
     target = document.querySelector(selector);
+    const shape = target ? markerShape(target) : 'circle';
     root.innerHTML = `<div class="tour-shade"></div>
-      <img class="tour-marker" src="./assets/tour-marker.png" alt="" aria-hidden="true">
+      <img class="tour-marker" data-shape="${shape}" src="${markerAssets[shape]}" alt="" aria-hidden="true">
+      <svg class="tour-arrow" aria-hidden="true"><path pathLength="1" /></svg>
       <section class="tour-card" role="dialog" aria-label="Обзор улучшений" aria-modal="true" tabindex="-1">
         <div class="tour-card-head"><span>Что мы улучшили · ${index + 1} / ${steps.length}</span><button type="button" data-tour="close" aria-label="Закрыть обзор">×</button></div>
         <h2>${title}</h2><p>${description}</p>
         <div class="tour-controls"><button type="button" data-tour="back" ${index ? '' : 'disabled'}>Назад</button><button type="button" class="tour-next" data-tour="next">${index === steps.length - 1 ? 'Завершить' : 'Дальше'} <span aria-hidden="true">→</span></button></div>
-        <small>Демонстрационный просмотр</small>
       </section>`;
     if (target) {
       const rect = target.getBoundingClientRect();
@@ -163,10 +210,13 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     loadingPanel('Загружаем примеры и обводки. Первый шаг откроется автоматически.');
     let timeout;
     try {
-      const marker = new Image();
-      marker.src = new URL('./assets/tour-marker.png', import.meta.url).href;
+      const markers = Object.values(markerAssets).map((src) => {
+        const marker = new Image();
+        marker.src = new URL(src, import.meta.url).href;
+        return marker.decode();
+      });
       const result = await Promise.race([
-        Promise.all([api('store'), api('merchant'), marker.decode()]),
+        Promise.all([api('store'), api('merchant'), ...markers]),
         new Promise((_, reject) => {
           timeout = setTimeout(() => reject(new Error('loading timeout')), 15000);
         }),
