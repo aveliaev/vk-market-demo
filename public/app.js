@@ -70,7 +70,7 @@ let routeVersion = 0;
 
 const navigation = [
   ['Покупатель', [['shop', 'shop', 'Витрина'], ['cart','wallet','Корзина'], ['purchases','receipt','Мои заказы'], ['chat', 'chat', 'Переписка']]],
-  ['Продавец', [['seller', 'bolt', 'Подключение'], ['price', 'tag', 'Цена и комиссии'], ['orders', 'box', 'Заказы'], ['analytics', 'chart', 'Аналитика']]],
+  ['Продавец', [['post', 'box', 'Создать пост'], ['seller', 'bolt', 'Подключение'], ['price', 'tag', 'Цена и комиссии'], ['orders', 'box', 'Заказы'], ['analytics', 'chart', 'Аналитика']]],
   ['Администрирование', [['admin', 'shield', 'Сверка платежей']]],
 ];
 const route = () => location.hash.slice(1).split('/').filter(Boolean);
@@ -130,11 +130,13 @@ function buyerReviews(item) {
       <small>${safe(review.variant)} · покупка ${date(review.date)}</small><p>${safe(review.text)}</p></article>`).join('')}</section>`;
 }
 
+const productionTime = (item) => item.leadDays === 14 ? 'Изготовление до 2 недель' : 'Изготовление до ' + item.leadDays + ' дн.';
+
 function catalogCards(items) {
   return items.map((item) => `<a class="catalog-card" href="#/product/${item.id}">
-    <div class="catalog-photo"><img src="${item.image}" alt="" width="300" height="300">${friendsNote(item, true)}</div>
+    <div class="catalog-photo"><img src="${item.image}" alt="" width="300" height="300">${friendsNote(item, true)}${item.leadDays ? '<small class="custom-sticker">Индивидуальный заказ</small>' : ''}</div>
     <strong>${rub(item.price)}</strong><span>${safe(item.title)}</span>
-    <small>${safe(item.category)} · ${item.leadDays ? 'На заказ' : 'В наличии'}</small>
+    <small>${safe(item.category)} · ${item.leadDays ? productionTime(item) : 'В наличии'}</small>
   </a>`).join('') || '<p class="catalog-empty">Товаров с такими параметрами нет. Попробуйте изменить поиск или фильтры.</p>';
 }
 
@@ -142,7 +144,7 @@ function shop() {
   const items = matchingProducts();
   const categories = ['', ...new Set(state.store.catalog.map((item) => item.category))];
   return `<section class="panel store-head">
-    <div class="store-identity"><div class="shop-avatar">Ф</div><div><h1>${state.store.seller}</h1><p>Мастерская керамики и товаров для дома</p></div></div>
+    <div class="store-identity">${shopAvatar()}<div><h1>${state.store.seller}</h1><p>Мастерская керамики и товаров для дома</p></div></div>
     <a class="btn secondary" href="#/chat">${icon('chat')}Сообщение</a>
   </section>
   <div class="catalog-layout">
@@ -158,7 +160,43 @@ function shop() {
       <fieldset><legend>Категория</legend>${categories.map((name) => `<label class="category-option"><input name="category" type="radio" data-filter="category" value="${safe(name)}" ${filters.category === name ? 'checked' : ''}>${name || 'Все товары'}</label>`).join('')}</fieldset>
       ${button('Сбросить фильтры', 'clear-filters', { kind: 'text-button' })}
     </aside>
-  </div>`;
+  </div>
+  ${publishedPosts()}`;
+}
+
+const postDraft = { text: '', productId: '' };
+
+function publishedPosts() {
+  return (state.posts ?? []).map((post) => {
+    const item = state.store.catalog.find((product) => product.id === post.productId);
+    return `<article class="panel section shop-post">
+      <div class="summary-seller">${shopAvatar()}<div><strong>${safe(state.store.seller)}</strong><span>${datetime(post.created)}</span></div></div>
+      <p class="post-text">${safe(post.text)}</p>
+      ${item ? `<a class="post-product" href="#/product/${item.id}"><img src="${item.image}" alt="" width="64" height="64">
+        <span><strong>${safe(item.title)}</strong><small>В наличии · ${rub(item.price)}</small></span>${icon('chevron')}</a>` : ''}
+    </article>`;
+  }).join('');
+}
+
+function postEditor() {
+  const ready = state.store.catalog.filter((item) => !item.leadDays);
+  const enabled = state.store.eligible && ready.length > 0;
+  return `${heading('Создать пост', 'Новость мастерской для покупателей')}
+    <section class="panel section post-editor">
+      <div class="summary-seller">${shopAvatar()}<div><strong>${safe(state.store.seller)}</strong><span>Публикация от имени магазина</span></div></div>
+      <form data-form="post">
+        <label class="field">Текст поста<textarea name="text" rows="5" maxlength="3000" required placeholder="Расскажите о новой коллекции или готовых работах">${safe(postDraft.text)}</textarea></label>
+        ${enabled ? `<aside class="post-suggestion"><div class="feature-icon">${icon('shop')}</div><div><strong>Добавьте товар из каталога</strong>
+          <p>У вас есть товары в наличии и подключена оплата. Прикрепите товар — покупатели смогут перейти к покупке прямо из поста.</p>
+          ${button(postDraft.productId ? 'Убрать товар' : 'Прикрепить товар', 'attach-post', {kind: 'secondary'})}</div></aside>` : ''}
+        ${postDraft.productId && enabled ? `<label class="field">Товар в посте<select name="productId">${ready.map((item) => `<option value="${item.id}" ${postDraft.productId === item.id ? 'selected' : ''}>${safe(item.title)} · ${rub(item.price)}</option>`).join('')}</select></label>` : ''}
+        <button class="btn primary">Опубликовать в демо-магазине</button>
+      </form>
+    </section>${publishedPosts()}`;
+}
+
+function shopAvatar() {
+  return '<img class="shop-avatar" src="./assets/shop-avatar.png" width="52" height="52" alt="Мастерская «Форма»">';
 }
 
 function product() {
@@ -168,9 +206,10 @@ function product() {
   <article class="panel product">
     <div class="product-photo"><img src="${item.image}" width="1000" height="800" alt="${safe(item.title)}"></div>
     <div class="product-info">
-      ${badge(item.leadDays ? 'На заказ' : 'В наличии', item.leadDays ? 'blue' : 'green')}
+      ${badge(item.leadDays ? 'Индивидуальный заказ' : 'В наличии', item.leadDays ? 'blue' : 'green')}
       <h2>${safe(item.title)}</h2>
       ${friendsNote(item)}
+      ${item.leadDays ? `<p class="production-time">${icon('calendar')}${productionTime(item)}</p>` : ''}
       <p class="product-description">${safe(item.description)}</p>
       <fieldset class="colors"><legend>Цвет</legend><div class="chips">${item.variants.map((name, i) => `<button type="button" class="chip ${variant === i ? 'selected' : ''}" data-action="variant:${i}" aria-pressed="${variant === i}">${name}</button>`).join('')}</div></fieldset>
       <div class="purchase-control"><div><div class="product-price">${rub(item.price)}</div><div class="muted">за штуку</div></div>
@@ -186,8 +225,8 @@ function product() {
     </div>
   </article>
   <div class="product-foot">
-    <div class="panel feature"><div class="feature-icon">${icon('pin')}</div><div><strong>Получение</strong><span>${item.leadDays ? 'Доставка или самовывоз по договорённости' : 'Из мастерской продавца'}</span></div></div>
-    <div class="panel feature"><div class="feature-icon">${icon('calendar')}</div><div><strong>${item.leadDays ? 'Изготовление до ' + item.leadDays + ' дней' : 'Бесплатный самовывоз'}</strong><span>${item.leadDays ? 'Детали и дату согласуйте в переписке' : 'Время получения согласуйте с продавцом'}</span></div></div>
+    <div class="panel feature"><div class="feature-icon">${icon('pin')}</div><div><strong>Получение</strong><span>Мастерская или пункт выдачи</span></div></div>
+    <div class="panel feature"><div class="feature-icon">${icon('calendar')}</div><div><strong>Срок получения</strong><span>${item.leadDays ? 'Рассчитаем от согласованной даты готовности' : 'Дата и стоимость видны до оплаты'}</span></div></div>
     <div class="panel feature"><div class="feature-icon">${icon('shield')}</div><div><strong>Карта, СБП и VK Кошелёк</strong><span>Оплата на экране заказа</span></div></div>
   </div>
   ${buyerReviews(item)}
@@ -295,7 +334,7 @@ function chat() {
   const product = store.catalog.find((entry) => entry.id === selected?.product_id) ?? store.catalog[0];
   return `${heading('Переписка', 'Индивидуальный заказ')}
     <div class="two-column chat-grid"><section class="panel conversation">
-      <div class="conversation-head"><div class="shop-avatar">Ф</div><div><strong>${store.seller}</strong><span>Сообщения магазина</span></div></div>
+      <div class="conversation-head">${shopAvatar()}<div><strong>${store.seller}</strong><span>Сообщения магазина</span></div></div>
       <div class="messages">
         ${selected ? questionThread(selected) : `<div class="bubble mine">Здравствуйте! Можно заказать две кобальтовые кружки?</div>
         <div class="bubble">Здравствуйте! Да, сделаем две кружки. Будут готовы ${date(store.ready)}. Стоимость — ${rub(store.price * 2)}.</div>
@@ -312,9 +351,8 @@ function chat() {
           <label class="field">Товар<input name="title" maxlength="100" required value="${safe(product.title)}"></label>
           <label class="field">Вариант<input name="variant" maxlength="80" required value="${safe(selected?.variant ?? 'Кобальтовая')}"></label>
           <div class="form-pair"><label class="field">Количество<input type="number" name="quantity" min="1" max="99" value="${selected ? 1 : 2}" required></label><label class="field">Цена товаров, ₽<input type="number" name="total" step="0.01" min="0.01" max="1000000" value="${cashInput(product.price * (selected ? 1 : 2))}" required></label></div>
-          <div class="form-pair"><label class="field">Согласованная дата<input name="ready" type="date" required value="${product.latestReady ?? store.ready}" ${product.latestReady ? `max="${product.latestReady}"` : ''}></label><label class="field">Срок оплаты<select name="hours"><option value="24">24 часа</option><option value="48">48 часов</option><option value="72">72 часа</option></select></label></div>
-          <label class="field">Получение<select name="fulfillment" id="fulfillment"><option value="pickup">Самовывоз</option><option value="delivery">Доставка</option></select></label>
-          <label class="field" id="shipping-field" hidden>Доставка, ₽<input type="number" name="shipping" step="0.01" min="0" max="100000" value="0"></label>
+          <div class="form-pair"><label class="field">Дата готовности<input name="ready" type="date" required value="${product.latestReady ?? store.ready}" ${product.latestReady ? `max="${product.latestReady}"` : ''}></label><label class="field">Срок оплаты<select name="hours"><option value="24">24 часа</option><option value="48">48 часов</option><option value="72">72 часа</option></select></label></div>
+          <p class="form-hint">Покупатель выберет самовывоз или пункт выдачи при оформлении.</p>
           <button class="btn primary" ${store.eligible ? '' : 'disabled'}>Отправить на оплату</button>
           ${store.eligible ? '' : '<p class="form-hint">Для отправки заказа подключите оплату.</p>'}
         </form>
@@ -341,7 +379,7 @@ function cartPage() {
       ${line.requiresChat ? '<span>На заказ · удалите из корзины и напишите продавцу</span>' : `<div class="stepper"><button data-action="cart-minus:${i}" aria-label="Уменьшить количество" ${line.quantity <= 1 ? 'disabled' : ''}>${icon('minus')}</button><output>${line.quantity}</output><button data-action="cart-plus:${i}" aria-label="Увеличить количество" ${line.quantity >= 8 ? 'disabled' : ''}>${icon('plus')}</button></div>`}
       <strong>${rub(line.total)}</strong></article>`).join('')}</section>
     <aside class="panel section"><h2>Ваш заказ</h2>${row('Количество товаров', String(cart.lines.reduce((sum,l) => sum+l.quantity,0)))}
-      ${row('Самовывоз', 'Бесплатно')}${row('Итого', rub(cart.total), 'sum')}
+      ${row('Получение', 'Выбор при оформлении')}${row('Сумма товаров', rub(cart.total), 'sum')}
       ${button('Оформить заказ', 'cart-checkout', {disabled: !state.store.eligible || cart.lines.some((line) => line.requiresChat)})}
       ${state.store.eligible ? '' : '<p>Магазин временно приостановил приём оплаты.</p>'}</aside></div>`;
 }
@@ -353,7 +391,7 @@ function purchases() {
       <div class="registry-head"><h2><a class="order-link" href="#/checkout/${o.token}">Заказ ${safe(o.id)}</a></h2>${badge(o.statusLabel, o.status === 'paid' ? 'green' : '')}</div>
       ${o.buyerName ? `<p class="muted">Покупка демопрофиля · ${date(o.created)}</p>` : ''}
       ${orderLines(o)}${row('Итого',rub(o.amount),'sum')}
-      ${row('Получение', safe(o.fulfillment))}${o.source === 'chat' && o.ready ? row('Согласованная дата', date(o.ready)) : ''}${o.status === 'paid' ? row('Исполнение', o.fulfillmentStatus === 'ready' && o.fulfillment.startsWith('Самовывоз') ? 'Готов к самовывозу' : fulfillmentLabel[o.fulfillmentStatus]) : ''}
+      ${deliverySummary(o)}${o.status === 'paid' ? row('Исполнение', o.fulfillmentStatus === 'ready' && o.fulfillment.startsWith('Самовывоз') ? 'Готов к самовывозу' : fulfillmentLabel[o.fulfillmentStatus]) : ''}
       <div class="inline-actions"><a class="btn secondary" href="#/checkout/${o.token}">Открыть заказ</a>
       ${o.receipt !== 'missing' ? `<a class="btn text-button" href="#/receipt/${o.token}">Чек</a>` : ''}</div>
       </article>`).join('') : '<section class="panel section"><h2>Заказов пока нет</h2><p>После оформления заказ появится здесь.</p><a href="#/shop" class="btn primary">В каталог</a></section>'}`;
@@ -370,16 +408,39 @@ function funnelPanel(data, orders) {
   </section>`;
 }
 
+function arrival(option) {
+  if (option.hours) return date(option.from) + ', ' + option.hours;
+  return date(option.from) + ' – ' + date(option.to);
+}
+
+function deliveryFields(o) {
+  if (!o.deliveryOptions?.length) return '';
+  const methods = [...new Set(o.deliveryOptions.map((option) => option.method))];
+  const choices = o.deliveryOptions.filter((option) => option.method === o.delivery.method);
+  return `<div class="delivery-fields">
+    <label class="field">Способ получения<select name="delivery-method">${methods.map((method) => {
+      const first = o.deliveryOptions.find((option) => option.method === method);
+      return `<option value="${first.id}" ${method === o.delivery.method ? 'selected' : ''}>${safe(method)} · ${first.fee ? rub(first.fee) : 'бесплатно'}</option>`;
+    }).join('')}</select></label>
+    <label class="field">${o.delivery.hours ? 'День и время' : 'Демо-пункт выдачи'}<select name="delivery-option">${choices.map((option) =>
+      `<option value="${option.id}" ${o.delivery.id === option.id ? 'selected' : ''}>${option.hours ? arrival(option) : safe(option.address)}</option>`).join('')}</select></label>
+  </div>`;
+}
+
+function deliverySummary(o) {
+  return `${row('Получение', safe(o.delivery?.address ?? o.fulfillment))}
+    ${o.source === 'chat' && o.ready ? row('Дата готовности', date(o.ready)) : ''}
+    ${o.delivery ? row('Срок получения', arrival(o.delivery)) : ''}`;
+}
+
 function orderDetails(o) {
   return `<section class="panel section checkout-summary">
-    <div class="summary-seller"><div class="shop-avatar">Ф</div><div><strong>Керамика «Форма»</strong><span>Продавец</span></div></div>
+    <div class="summary-seller">${shopAvatar()}<div><strong>Керамика «Форма»</strong><span>Продавец</span></div></div>
     <div class="checkout-block">
       <h2>Получение</h2>
-      <dl class="checkout-meta">
-        <div><dt>${icon('pin')}Способ получения</dt><dd>${safe(o.fulfillment)}</dd></div>
-        ${o.source === 'chat' && o.ready ? `<div><dt>${icon('calendar')}Согласованная дата</dt><dd>${date(o.ready)}</dd></div>` : '<div><dt>Условия</dt><dd>Бесплатно, время по договорённости</dd></div>'}
-      </dl>
-      ${o.shipping ? row('Стоимость доставки', rub(o.shipping)) : ''}
+      ${deliveryFields(o)}
+      ${deliverySummary(o)}
+      ${row('Стоимость получения', o.shipping ? rub(o.shipping) : 'Бесплатно')}
     </div>
     <div class="checkout-block">
       <h2>Состав заказа</h2>
@@ -407,7 +468,7 @@ function checkoutComparison() {
       <section class="comparison-path proposed">
         <h2>Сценарий MVP для готового товара</h2>
         <ol>
-          <li>На оформлении уже видны итоговая сумма, условия самовывоза.</li>
+          <li>На оформлении уже видны стоимость и срок получения в мастерской или пункте выдачи.</li>
           <li>Покупатель выбирает карту, СБП или VK Кошелёк и подтверждает платёж.</li>
           <li>Подтверждение заказа и чек доступны в деталях заказа.</li>
         </ol>
@@ -490,7 +551,7 @@ function orderDetail(id) {
   const payoutButton = o.payout === 'scheduled' ? button('Подтвердить тестовую выплату', 'merchant:payout', { kind: 'secondary' }) : '';
   return `${heading('Заказ ' + safe(o.id), safe(o.title), '<a class="btn text-button" href="#/orders">' + icon('back') + 'К реестру</a>')}
     <div class="two-column">
-      <section class="panel section"><h2>Состав заказа</h2>${orderLines(o)}<hr class="section-divider"><h2>Состояние заказа</h2>
+      <section class="panel section"><h2>Состав заказа</h2>${orderLines(o)}<hr class="section-divider"><h2>Получение</h2>${deliverySummary(o)}<hr class="section-divider"><h2>Состояние заказа</h2>
         ${row('Оплата', badge(o.statusLabel, o.status === 'paid' ? 'green' : 'blue'))}
         ${row('Способ оплаты', methodName(o.method))}${row('Чек', receiptLabel[o.receipt])}
         ${row('Исполнение', fulfillmentLabel[o.fulfillmentStatus])}${row('Перечисление', payoutLabel[o.payout])}
@@ -558,7 +619,7 @@ function errorPanel(message) {
   return `<section class="panel section"><h1>Не удалось открыть экран</h1><p>${safe(message)}</p><a class="btn primary" href="#/shop">На витрину</a></section>`;
 }
 
-const pages = { shop, cart: cartPage, purchases, product, seller, price: pricePage, chat, checkout, receipt, orders, analytics, admin };
+const pages = { post: postEditor, shop, cart: cartPage, purchases, product, seller, price: pricePage, chat, checkout, receipt, orders, analytics, admin };
 function render(page = current()) {
   const [, key] = route();
   main.innerHTML = page === 'orders' && key ? orderDetail(decodeURIComponent(key)) : (Object.hasOwn(pages, page) ? pages[page]() : errorPanel('Такого раздела нет.'));
@@ -601,7 +662,7 @@ async function load({ focus = true } = {}) {
   if (focus) main.innerHTML = '<p class="loading">Загружаем…</p>';
   try {
     const query = {
-      shop: ['store'], cart: ['cart','store'], purchases: ['purchases'], product: ['store', 'faq'], price: ['store'], seller: ['seller'], chat: ['store', 'chatOrders', 'questions'],
+      shop: ['store', 'posts'], post: ['store', 'posts'], cart: ['cart','store'], purchases: ['purchases'], product: ['store', 'faq'], price: ['store'], seller: ['seller'], chat: ['store', 'chatOrders', 'questions'],
       checkout: ['order'], receipt: ['order'], orders: ['merchant'], analytics: ['merchant'], admin: ['admin'],
     };
     const endpoint = { faq: 'faq/' + encodeURIComponent(key ?? ''), order: 'checkout/' + encodeURIComponent(key ?? ''), chatOrders: 'chat' };
@@ -686,6 +747,11 @@ document.addEventListener('click', (event) => {
   const control = event.target.closest('button[data-action]');
   if (!control) return;
   const [action, arg] = control.dataset.action.split(':');
+  if (action === 'attach-post') {
+    postDraft.productId = postDraft.productId ? '' : state.store.catalog.find((item) => !item.leadDays).id;
+    render();
+    return;
+  }
   if (action === 'compose') {
     const item = state.item;
     const title = item.leadDays ? 'Обсудить заказ' : 'Написать продавцу';
@@ -764,7 +830,14 @@ document.addEventListener('click', (event) => {
       if (arg === 'pause') { await load({ focus: false }); toast('Приём оплаты приостановлен'); }
       else await load({ focus: false });
     } else if (action === 'checkout') {
-      await api('checkout/' + state.order.token + '/' + arg, { method: state.method });
+      const order = state.order;
+      const expected = arg === 'start' ? { expectedAmount: order.amount, deliveryId: order.delivery?.id, deliveryFrom: order.delivery?.from } : {};
+      try {
+        await api('checkout/' + order.token + '/' + arg, { method: state.method, ...expected });
+      } catch (error) {
+        if (version === routeVersion) await load({focus: false});
+        throw error;
+      }
       if (version === routeVersion) await load({ focus: false });
     } else if (action === 'merchant') {
       await api('merchant/' + route()[1] + '/' + arg, {});
@@ -787,6 +860,7 @@ document.addEventListener('click', (event) => {
 
 const asCents = (value) => Math.round(Number(value) * 100);
 const formHandlers = {
+  post: (f) => api('posts', { text: f.text, productId: f.productId }),
   ask: (f) => api('questions', { productId: state.item.id, variant: state.item.variants[state.variant], question: f.question }),
   reply: (f) => api('questions/' + f.id + '/reply', { reply: f.reply }),
   publish: (f) => api('questions/' + f.id + '/publish', { question: f.question, answer: f.answer }),
@@ -796,7 +870,7 @@ const formHandlers = {
   register: (f) => api('seller/register', { agreed: f.agreed === 'on' }),
   permissions: (f) => api('seller/permissions', { payouts: f.payouts === 'on', receipts: f.receipts === 'on' }),
   price: (f) => api('price', { base: asCents(f.base) }),
-  chat: (f) => api('orders/chat', { ...f, quantity: Number(f.quantity), hours: Number(f.hours), total: asCents(f.total), shipping: asCents(f.shipping) }),
+  chat: (f) => api('orders/chat', { ...f, quantity: Number(f.quantity), hours: Number(f.hours), total: asCents(f.total) }),
   economy: (f) => api('economy', Object.fromEntries(Object.entries(f).map(([key, value]) => [key, key === 'externalCount' ? Number(value) : asCents(value)]))),
 };
 document.addEventListener('submit', (event) => {
@@ -813,6 +887,13 @@ document.addEventListener('submit', (event) => {
       toast('Вопрос отправлен продавцу');
       return;
     }
+    if (form.dataset.form === 'post') {
+      postDraft.text = '';
+      postDraft.productId = '';
+      go('shop');
+      toast('Пост опубликован в демо-магазине');
+      return;
+    }
     await load({ focus: false });
     const messages = { reply: 'Ответ отправлен', publish: 'Ответ опубликован в карточке', unpublish: 'Ответ снят с публикации', price: 'Цена сохранена', chat: 'Заказ отправлен на оплату', economy: 'Расчёт обновлён' };
     if (messages[form.dataset.form]) toast(messages[form.dataset.form]);
@@ -821,15 +902,36 @@ document.addEventListener('submit', (event) => {
 
 document.addEventListener('change', (event) => {
   const field = event.target;
+  if (field.name === 'productId' && current() === 'post') postDraft.productId = field.value;
   if (field.name === 'method') {
     state.method = field.value;
     document.querySelector('#cashback-preview').hidden = field.value !== 'wallet';
   }
-  if (field.id === 'fulfillment') document.querySelector('#shipping-field').hidden = field.value !== 'delivery';
+  if (field.name === 'delivery-method' || field.name === 'delivery-option') {
+    if (state.busy) { render(); return; }
+    const token = state.order.token;
+    const option = field.value;
+    void act(field, async (version) => {
+      const controls = main.querySelectorAll('.delivery-fields select, [data-action="checkout:start"]');
+      controls.forEach((control) => { control.disabled = true; });
+      try {
+        const order = await api('checkout/' + token + '/fulfillment', { option });
+        if (version === routeVersion) {
+          state.order = order;
+          render();
+          main.querySelector('[name="' + field.name + '"]')?.focus({ preventScroll: true });
+        }
+      } catch (error) {
+        if (version === routeVersion) await load({focus: false});
+        throw error;
+      }
+    });
+  }
 });
 
 document.addEventListener('input', (event) => {
   const field = event.target;
+  if (field.name === 'text' && current() === 'post') postDraft.text = field.value;
   if (field.dataset.filter) {
     filters[field.dataset.filter] = field.value;
     const items = matchingProducts();

@@ -209,3 +209,36 @@ test('тарелку заказывают через переписку и оп�
   assert.equal(paid.receipt, 'issued');
   assert.deepEqual(paid.fees, { vk: 2775, acquiring: 0, net: 182225 });
 });
+
+test('выбор пункта выдачи фиксирует цену и сроки до оплаты', async () => {
+  const { catalog } = await api('store');
+  const cup = catalog.find((item) => item.id === 'cups');
+  const plate = catalog.find((item) => item.id === 'plate');
+  const question = await api('questions', { productId: plate.id, variant: plate.variants[0], question: 'Согласуем роспись?' });
+  const custom = await api('orders/chat', { productId: plate.id, questionId: question.id, title: plate.title,
+    variant: plate.variants[0], total: plate.price, quantity: 1, hours: 24, ready: plate.latestReady });
+  const stock = await api('orders/store', { productId: cup.id, variant: cup.variants[0], unit: cup.price, quantity: 1 });
+  for (const order of [stock, custom]) {
+    const path = 'checkout/' + order.token;
+    assert.equal(order.delivery.fee, 0);
+    const switched = await api(path + '/fulfillment', {option: 'point-park'});
+    assert.equal(switched.amount, order.total + 29000);
+    assert.equal(switched.delivery.address, 'ПВЗ «Парк» · ул. Парковая, 12');
+    assert.deepEqual((await api(path)).delivery, switched.delivery);
+    if (order.source === 'chat') {
+      assert.equal(switched.ready, plate.latestReady);
+      assert.equal(Date.parse(switched.delivery.from) - Date.parse(switched.ready), 2 * 86400000);
+      assert.equal(Date.parse(switched.delivery.to) - Date.parse(switched.ready), 4 * 86400000);
+    }
+    await api(path + '/start', { method: 'card', expectedAmount: order.amount, deliveryId: order.delivery.id, deliveryFrom: order.delivery.from }, 409);
+    const pickup = await api(path + '/fulfillment', {option: 'studio-pm'});
+    assert.equal(pickup.amount, order.total);
+    const selected = await api(path + '/fulfillment', {option: 'point-central'});
+    const pay = await api(path + '/start', { method: 'wallet', expectedAmount: selected.amount, deliveryId: selected.delivery.id, deliveryFrom: selected.delivery.from });
+    assert.deepEqual(pay.delivery, selected.delivery);
+    assert.equal(pay.deliveryOptions.length, 0);
+    await api(path + '/fulfillment', {option: 'studio-am'}, 409);
+    await api(path + '/confirm', {});
+    assert.equal((await until(path, 'paid')).amount, selected.amount);
+  }
+});

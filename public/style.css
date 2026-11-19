@@ -337,3 +337,22 @@ td .amber-text { color: #865315; }
 .buyer-reviews article { padding: 13px 0; border-top: 1px solid var(--border); }
 .buyer-reviews article small { margin-left: 10px; }
 .buyer-reviews article p { margin: 6px 0 0; }
+
+.catalog-photo .custom-sticker { position: absolute; left: 8px; bottom: 12px; padding: 4px 8px; border-radius: 6px; background: #edf4ff; color: #254978; font-size: .76rem; font-weight: 650; }
+.production-time { display: flex; align-items: center; gap: 7px; margin: 0 0 8px; font-weight: 650; }
+.production-time .icon { width: 18px; color: #426e9f; }
+.delivery-fields { display: grid; gap: 10px; margin: 12px 0; }
+
+img.shop-avatar { object-fit: cover; border-radius: 50%; }
+.post-editor { max-width: 760px; }
+.post-editor form { margin-top: 18px; }
+.post-editor textarea { min-height: 150px; }
+.post-suggestion { display: flex; align-items: start; gap: 12px; padding: 15px; background: #edf4ff; border-radius: 10px; }
+.post-suggestion p { font-size: .9rem; color: var(--muted); margin: 5px 0 10px; }
+.shop-post { margin-top: 16px; max-width: 760px; }
+.post-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.post-product { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+.post-product img { border-radius: 8px; }
+.post-product strong, .post-product small { display: block; }
+.post-product small { margin-top: 5px; color: var(--muted); }
+.post-product > .icon { margin-left: auto; }

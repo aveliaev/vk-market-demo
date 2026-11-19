@@ -47,7 +47,7 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
   const timestamp = () => Date.now();
   const calendar = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit' });
   const futureDate = (days) => calendar.format(timestamp() + days * DAY);
-  const readyDate = () => futureDate(4) <= '2026-12-15' ? '2026-12-15' : futureDate(4);
+  const readyDate = () => futureDate(4);
 
   const assortment = [
     { id: 'cups', title: PRODUCT, category: 'Посуда', variants: VARIANTS, description: 'Кружка ручной работы с цветной глазурью. Объём 300 мл.' },
@@ -219,10 +219,34 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
       : order.status;
   }
 
+  const pointFee = 29000;
+  function deliveryOptions(order) {
+    // A ready item can be collected from tomorrow. For commissioned work the maker sets the date.
+    const tomorrow = futureDate(1);
+    const origin = order.source === 'chat' && order.ready >= tomorrow ? order.ready : tomorrow;
+    const after = (days) => new Date(Date.parse(origin) + days * DAY).toISOString().slice(0, 10);
+    const pickup = { method: PICKUP, address: 'Мастерская «Форма»', fee: 0 };
+    const point = { method: 'Пункт выдачи', fee: pointFee, from: after(2), to: after(4) };
+    return [
+      { ...pickup, id: 'studio-am', from: origin, to: origin, hours: '10:00–14:00' },
+      { ...pickup, id: 'studio-pm', from: after(1), to: after(1), hours: '14:00–18:00' },
+      { ...point, id: 'point-central', address: 'ПВЗ «Центр» · ул. Садовая, 8' },
+      { ...point, id: 'point-park', address: 'ПВЗ «Парк» · ул. Парковая, 12' },
+    ];
+  }
+
+  function applyDelivery(order, option) {
+    Object.assign(order, { delivery: option, fulfillment: option.method,
+      shipping: option.fee, amount: (order.total ?? order.amount - order.shipping) + option.fee });
+  }
+
   function present(order) {
     const status = effectiveStatus(order);
     const lines = order.lines ?? [{ productId: order.productId, title: order.title, variant: order.variant, quantity: order.quantity, unit: order.unit, total: order.total ?? order.amount - order.shipping }];
-    return { ...order, lines, status, statusLabel: labels[status], fees: fees(order), walletCashback: charge(order.amount, 500) };
+    const editable = status === 'unpaid' && (order.delivery || order.fulfillment === PICKUP);
+    const options = editable ? deliveryOptions(order) : [];
+    const delivery = options.find((option) => option.id === order.delivery?.id) ?? options[0] ?? order.delivery;
+    return { ...order, delivery, deliveryOptions: options, lines, status, statusLabel: labels[status], fees: fees(order), walletCashback: charge(order.amount, 500) };
   }
 
   function integer(value, min, max) {
@@ -347,9 +371,21 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
   function buyerAction(order, action, body) {
     const status = effectiveStatus(order);
     switch (action) {
+      case 'fulfillment': {
+        const option = present(order).deliveryOptions.find((entry) => entry.id === body.option);
+        requireThat(option, 'Этот вариант получения недоступен. Обновите заказ.');
+        applyDelivery(order, option);
+        break;
+      }
       case 'start': {
         requireThat(status === 'unpaid' || status === 'pending', 'Этот заказ уже закрыт для оплаты.');
-        if (status === 'pending') return present(order);
+        const current = present(order);
+        if (body.expectedAmount !== undefined) {
+          requireThat(body.expectedAmount === order.amount && body.deliveryId === current.delivery?.id &&
+            body.deliveryFrom === current.delivery?.from, 'Условия заказа изменились. Проверьте сумму и срок получения.');
+        }
+        if (status === 'pending') return current;
+        if (current.delivery) applyDelivery(order, current.delivery);
         requireThat(eligible(), 'Магазин временно не принимает оплату.');
         requireThat(Object.hasOwn(RATES, body.method), 'Выберите способ оплаты.', 400);
         Object.assign(order, { status: 'pending', method: body.method, paymentId: 'test_' + randomUUID() });
@@ -481,6 +517,7 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
     const parts = path.split('/').slice(2).map(decodeURIComponent);
     const [area, key, action] = parts;
     if (method === 'GET') {
+      if (area === 'posts') return get('posts') ?? [];
       if (area === 'cart') return readCart(buyer);
       if (area === 'purchases') return db.prepare("SELECT data FROM orders JOIN buyer_orders ON orders.id = buyer_orders.order_id WHERE buyer = ? ORDER BY json_extract(data, '$.created') DESC, orders.rowid DESC").all(buyer).map((entry) => present(JSON.parse(entry.data)));
       if (area === 'store') {
@@ -518,6 +555,17 @@ export function createMarket(db, { randomUUID, makeToken, signature, timingSafeE
       }
     }
     if (method === 'POST') {
+      if (area === 'posts') {
+        const productId = body.productId || null;
+        if (productId) {
+          requireThat(eligible(), 'Подключите оплату перед прикреплением товара.');
+          requireThat(catalog().some((item) => item.id === productId && !item.leadDays),
+            'Для поста выберите товар в наличии.', 400);
+        }
+        const post = { id: randomUUID(), text: string(body.text, 1, 3000), productId, created: timestamp() };
+        put('posts', [post, ...(get('posts') ?? [])]);
+        return post;
+      }
       if (area === 'cart') return changeCart(buyer, key, body);
       if (area === 'view') {
         requireThat(assortment.some((item) => item.id === key), 'Товар не найден.', 404);
