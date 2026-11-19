@@ -1,4 +1,4 @@
-# VK Оплата
+# ВК
 
 [Открыть демо-маркет](https://aveliaev.github.io/vk-market-demo/)
 
