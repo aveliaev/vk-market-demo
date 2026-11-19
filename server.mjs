@@ -17,8 +17,10 @@ const market = createMarket(db, {
   signature: (raw) => createHmac('sha256', signedKey).update(raw).digest(),
 });
 
-const contentTypes = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.png': 'image/png' };
-const publicFiles = new Set(['/index.html', '/app.js', '/tour.js', '/style.css', '/assets/vk.svg', '/assets/chevron.svg', '/assets/friends-choice.png', '/assets/shop-avatar.png', '/assets/tour-marker.png', '/assets/tour-marker-pill.png', '/assets/tour-marker-circle.png', '/assets/tour-marker-frame.png', ...market.productIds.map((id) => '/assets/' + id + '.webp')]);
+const contentTypes = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.png': 'image/png', '.ttf': 'font/ttf', '.woff': 'font/woff', '.txt': 'text/plain; charset=utf-8' };
+const publicFiles = new Set(['/index.html', '/app.js', '/tour.js', '/vk-icons.js', '/style.css', '/assets/vk.svg', '/assets/VK-ICONS-LICENSE.txt',
+  '/assets/fonts/NOTICE.txt', '/assets/fonts/VK-Sans-Text-Regular.ttf', '/assets/fonts/VK-Sans-Text-Medium.ttf',
+  '/assets/fonts/VK-Sans-Text-DemiBold.ttf', '/assets/fonts/VK-Sans-Display-DemiBold.woff', '/assets/chevron.svg', '/assets/friends-choice.png', '/assets/shop-avatar.png', '/assets/tour-marker.png', '/assets/tour-marker-pill.png', '/assets/tour-marker-circle.png', '/assets/tour-marker-frame.png', ...market.productIds.map((id) => '/assets/' + id + '.webp')]);
 
 async function handle(request, response) {
   response.setHeader('X-Content-Type-Options', 'nosniff');

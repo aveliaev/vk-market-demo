@@ -1,34 +1,9 @@
+import { vkIcons } from './vk-icons.js';
 import { createFeatureTour } from './tour.js';
 
 const main = document.querySelector('main');
 const dialog = document.querySelector('#dialog');
-const paths = {
-  shop: '<path d="M3 9h18l-2-5H5z M3 9v2a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0V9 M5 14v6h14v-6 M10 20v-4h4v4"/>',
-  chat: '<path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5H4l1.6-3.3A8.5 8.5 0 1 1 21 11.5Z"/><path d="M8.5 12h7"/>',
-  bolt: '<path d="m13 2-9 12h7l-1 8 10-12h-7z"/>',
-  box: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 5V3m6 2V3m-6 11h6"/>',
-  tag: '<path d="M20 13 13 20a2 2 0 0 1-3 0l-7-7V4h9l8 6a2 2 0 0 1 0 3Z"/><circle cx="8" cy="8" r="1"/>',
-  chart: '<path d="M3 3v17h18M8 15v-4m5 4V7m5 8V5"/>',
-  shield: '<path d="M12 22s7-3.8 7-10V5l-7-3-7 3v7c0 6.2 7 10 7 10Z"/><path d="m9 12 2 2 4-4"/>',
-  user: '<circle cx="12" cy="8" r="3"/><path d="M5 20v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2"/>',
-  flask: '<path d="M9 3h6m-5 0v7l-5 8a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-8V3M8 15h8"/>',
-  pin: '<path d="M19 10c0 5-7 10-7 10s-7-5-7-10a7 7 0 0 1 14 0Z"/><circle cx="12" cy="10" r="2.3"/>',
-  calendar: '<rect x="4" y="6" width="16" height="14" rx="2"/><path d="M4 10h16M8 4v4m8-4v4"/>',
-  card: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M7 15h3"/>',
-  receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6m-6 4h6"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>',
-  minus: '<path d="M5 12h14"/>',
-  check: '<path d="m5 12 4 4L19 6"/>',
-  chevron: '<path d="m9 6 6 6-6 6"/>',
-  back: '<path d="m12 6-6 6 6 6M6 12h14"/>',
-  x: '<path d="m6 6 12 12M18 6 6 18"/>',
-  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
-  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/>',
-  link: '<path d="m10 13 4-4m-6 7-1 1a3 3 0 0 1-4-4l5-5a3 3 0 0 1 4 0m0 8a3 3 0 0 0 4 0l5-5a3 3 0 0 0-4-4l-1 1"/>',
-  settings: '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2" fill="white"/><circle cx="15" cy="17" r="2" fill="white"/>',
-  wallet: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M21 10h-6a2 2 0 0 0 0 4h6m-5-2h.01"/>',
-};
-const icon = (name, cls = '') => `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ''}</svg>`;
+const icon = (name, cls = '') => `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${vkIcons[name] || ''}</svg>`;
 const rub = (cents) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 }).format(cents / 100);
 const pct = (value) => value === null ? '—' : new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 1 }).format(value);
 const date = (value, options = { day: 'numeric', month: 'long' }) => new Intl.DateTimeFormat('ru-RU', { ...options, timeZone: 'Europe/Moscow' }).format(new Date(value));
@@ -87,8 +62,8 @@ const featureTour = createFeatureTour({
 });
 
 const navigation = [
-  ['Покупатель', [['shop', 'shop', 'Витрина'], ['cart','wallet','Корзина'], ['purchases','receipt','Мои заказы'], ['chat', 'chat', 'Переписка']]],
-  ['Продавец', [['post', 'box', 'Создать пост'], ['seller', 'bolt', 'Подключение'], ['price', 'tag', 'Цена и комиссии'], ['orders', 'box', 'Заказы'], ['analytics', 'chart', 'Аналитика']]],
+  ['Покупатель', [['shop', 'shop', 'Витрина'], ['cart','cart','Корзина'], ['purchases','receipt','Мои заказы'], ['chat', 'chat', 'Переписка']]],
+  ['Продавец', [['post', 'write', 'Создать пост'], ['seller', 'bolt', 'Подключение'], ['price', 'tag', 'Цена и комиссии'], ['orders', 'box', 'Заказы'], ['analytics', 'chart', 'Аналитика']]],
   ['Администрирование', [['admin', 'shield', 'Сверка платежей']]],
 ];
 const route = () => location.hash.slice(1).split('/').filter(Boolean);

@@ -1,0 +1,9 @@
+VK Sans fonts by TypeType for VK.
+
+VK Sans Text © 2020–2024 TypeType. All rights reserved.
+VK Sans Display © 2020–2023 TypeType. All rights reserved.
+
+Source: https://vksans.ru/
+Text: /local/assets/fonts/text/VK_Sans_Text_{Regular,Medium,DemiBold}.ttf
+Display: /local/assets/fonts/display/woff/VK_Sans_Display_DemiBold.woff
+Retrieved 2026-11-19 for the VK marketplace demonstration.
