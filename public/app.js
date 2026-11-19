@@ -199,7 +199,7 @@ function product() {
   <article class="panel product">
     <div class="product-photo"><img src="${item.image}" width="1000" height="800" alt="${safe(item.title)}"></div>
     <div class="product-info">
-      ${badge(item.leadDays ? 'Индивидуальный заказ' : 'В наличии', item.leadDays ? 'blue' : 'green')}
+      ${badge(item.leadDays ? 'Индивидуальный заказ' : 'В наличии', item.leadDays ? 'blue custom-badge' : 'green')}
       <h2>${safe(item.title)}</h2>
       ${friendsNote(item)}
       ${item.leadDays ? `<p class="production-time">${icon('calendar')}${productionTime(item)}</p>` : ''}

@@ -372,7 +372,7 @@ td .amber-text { color: #865315; }
 .buyer-reviews article small { margin-left: 10px; }
 .buyer-reviews article p { margin: 6px 0 0; }
 
-.catalog-photo .custom-sticker { position: absolute; left: 8px; bottom: 12px; padding: 4px 8px; border-radius: 6px; background: #edf4ff; color: #254978; font-size: .76rem; font-weight: 600; }
+.catalog-photo .custom-sticker { position: absolute; left: 8px; bottom: 12px; max-width: calc(100% - 16px); display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px 3px 4px; border-radius: 20px; background: #edf4ff; color: #254978; font-size: .76rem; font-weight: 600; }
 .production-time { display: flex; align-items: center; gap: 7px; margin: 0 0 8px; font-weight: 600; }
 .production-time .icon { width: 18px; color: var(--blue-text); }
 .delivery-fields { display: grid; gap: 10px; margin: 12px 0; }
@@ -436,3 +436,7 @@ img.shop-avatar { object-fit: cover; border-radius: 50%; }
 .stepper { border-radius: var(--control-radius); background: var(--control-bg); }
 .chip { min-height: 36px; border-radius: var(--control-radius); font-weight: 500; }
 .badge, .field, .nav-group p, .breadcrumbs strong { font-weight: 500; }
+
+
+.custom-sticker::before, .custom-badge::before { content: ''; display: block; flex: none; width: 27px; height: 27px; background: url("./assets/custom-product.png") center / contain no-repeat; }
+.badge.custom-badge { gap: 6px; padding: 3px 11px 3px 5px; }

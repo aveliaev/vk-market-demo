@@ -2,7 +2,7 @@ const steps = [
   ['shop', '.friend-sticker', 'Знакомый выбор помогает решиться', 'Видно, какие товары уже купили друзья.'],
   ['shop', '.catalog-card[href="#/product/plate"]', 'Срок понятен ещё в каталоге', 'Индивидуальный товар отмечен отдельно. Максимальный срок изготовления виден до открытия карточки.'],
   ['product/cups', '.product-actions', 'От выбора сразу к покупке', 'Готовый товар можно оформить через корзину или купить сразу.'],
-  ['product/plate', '.production-time', 'Сначала согласуем детали', 'Покупатель заранее видит максимальный срок и обсуждает заказ с мастером.'],
+  ['product/plate', ['.production-time', '.product-actions [data-action="compose"]'], 'Сначала согласуем детали', 'Максимальный срок изготовления виден заранее. По кнопке «Обсудить заказ» можно согласовать детали и дату изготовления с мастером в чате.'],
   ['cart', '.cart-line', 'Несколько товаров — один заказ', 'Количество и состав можно изменить перед оформлением.'],
   ['checkout/tour-stock', '.delivery-fields', 'Добавили выбор получения', 'Самовывоз или пункт выдачи. Стоимость и срок видны до оплаты.'],
   ['checkout/tour-custom', '.checkout-summary .checkout-block', 'Два срока показаны отдельно', 'Когда мастер закончит работу и когда покупатель получит заказ.'],
@@ -43,7 +43,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
   let version = 0;
   let originalHash;
   let preview;
-  let target;
+  let targets = [];
   let frame;
 
   function makePreview(store, merchant) {
@@ -81,8 +81,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     return field === 'order' ? preview.orders[key] : preview[field];
   }
 
-  function pointArrow(card, ring) {
-    const path = root.querySelector('.tour-arrow path');
+  function pointArrow(card, ring, path) {
     if (!path) return;
     const c = card.getBoundingClientRect();
     const r = ring.getBoundingClientRect();
@@ -128,17 +127,28 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
   }
 
   function place() {
-    if (!active || !target?.isConnected) return;
-    const ring = root.querySelector('.tour-marker');
+    if (!active || !targets.length || targets.some((target) => !target.isConnected)) return;
+    const rings = [...root.querySelectorAll('.tour-marker')];
+    const paths = [...root.querySelectorAll('.tour-arrow path')];
     const card = root.querySelector('.tour-card');
-    if (!ring || !card) return;
-    const rect = target.getBoundingClientRect();
-    const padX = Math.max(18, rect.width * .05);
-    const padY = Math.max(16, rect.height * .05);
-    Object.assign(ring.style, {left: rect.left - padX + 'px', top: rect.top - padY + 'px', width: rect.width + 2 * padX + 'px', height: rect.height + 2 * padY + 'px'});
+    if (!rings.length || !card) return;
+    const rects = targets.map((target) => target.getBoundingClientRect());
+    const rect = {
+      left: Math.min(...rects.map((r) => r.left)),
+      right: Math.max(...rects.map((r) => r.right)),
+      top: Math.min(...rects.map((r) => r.top)),
+      bottom: Math.max(...rects.map((r) => r.bottom)),
+    };
+    let padding = 0;
+    rects.forEach((r, i) => {
+      const padX = Math.max(18, r.width * .05);
+      const padY = Math.max(16, r.height * .05);
+      padding = Math.max(padding, padX, padY);
+      Object.assign(rings[i].style, {left: r.left - padX + 'px', top: r.top - padY + 'px', width: r.width + 2 * padX + 'px', height: r.height + 2 * padY + 'px'});
+    });
     const width = card.offsetWidth;
     const height = card.offsetHeight;
-    const gap = Math.max(padX, padY) + 48;
+    const gap = padding + 48;
     const positions = [
       [rect.right + gap, rect.top],
       [rect.left - width - gap, rect.top],
@@ -149,14 +159,14 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     const [x,y] = positions.find(fits) ?? [innerWidth - width - 20, innerHeight - height - 20];
     card.style.left = Math.max(16,x) + 'px';
     card.style.top = Math.max(70,y) + 'px';
-    pointArrow(card, ring);
+    rings.forEach((ring, i) => pointArrow(card, ring, paths[i]));
   }
 
   async function show(next) {
     root.classList.remove('tour-positioned');
     index = next;
     const ticket = ++version;
-    target = null;
+    targets = [];
     root.innerHTML = '<div class="tour-shade"></div><p class="tour-loading" role="status">Открываем следующий раздел…</p>';
     const [route, selector, title, description] = steps[index];
     await navigate(route);
@@ -167,25 +177,28 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
       if (radio) radio.checked = true;
       document.querySelector('#cashback-preview').hidden = false;
     }
-    target = document.querySelector(selector);
-    const shape = target ? markerShape(target) : 'circle';
+    targets = (Array.isArray(selector) ? selector : [selector]).map((entry) => document.querySelector(entry)).filter(Boolean);
     root.innerHTML = `<div class="tour-shade"></div>
-      <img class="tour-marker" data-shape="${shape}" src="${markerAssets[shape]}" alt="" aria-hidden="true">
-      <svg class="tour-arrow" aria-hidden="true"><path pathLength="1" /></svg>
+      ${targets.map((target, i) => {
+        const shape = markerShape(target);
+        return `<img class="tour-marker" data-shape="${shape}" src="${markerAssets[shape]}" style="animation-delay: ${i * .3}s" alt="" aria-hidden="true">`;
+      }).join('')}
+      <svg class="tour-arrow" aria-hidden="true">${targets.map((_, i) => `<path pathLength="1" style="animation-delay: ${.65 + i * .3}s" />`).join('')}</svg>
       <section class="tour-card" role="dialog" aria-label="Обзор улучшений" aria-modal="true" tabindex="-1">
         <div class="tour-card-head"><span>Что мы улучшили · ${index + 1} / ${steps.length}</span><button type="button" data-tour="close" aria-label="Закрыть обзор">×</button></div>
         <h2>${title}</h2><p>${description}</p>
         <div class="tour-controls"><button type="button" data-tour="back" ${index ? '' : 'disabled'}>Назад</button><button type="button" class="tour-next" data-tour="next">${index === steps.length - 1 ? 'Завершить' : 'Дальше'} <span aria-hidden="true">→</span></button></div>
       </section>`;
-    if (target) {
-      const rect = target.getBoundingClientRect();
+    if (targets.length) {
+      const rects = targets.map((target) => target.getBoundingClientRect());
+      const rect = {top: Math.min(...rects.map((r) => r.top)), bottom: Math.max(...rects.map((r) => r.bottom))};
       if (rect.top < 100 || rect.bottom > innerHeight - 60) {
         const y = Math.max(0, scrollY + rect.top - 100);
         window.scrollTo({left: 0, top: y, behavior: 'instant'});
       }
     }
-    if (target) {
-      const rect = target.getBoundingClientRect();
+    if (targets.length) {
+      const rect = targets[0].getBoundingClientRect();
       const left = Math.max(0, scrollX + rect.left + rect.width / 2 - innerWidth / 2);
       window.scrollTo({left, top: scrollY, behavior: 'instant'});
     }
@@ -252,7 +265,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     trigger.disabled = false;
     active = false;
     ++version;
-    target = null;
+    targets = [];
     root.hidden = true;
     root.innerHTML = '';
     document.querySelector('.shell').inert = false;
