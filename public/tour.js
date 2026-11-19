@@ -121,8 +121,13 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
       const rect = target.getBoundingClientRect();
       if (rect.top < 100 || rect.bottom > innerHeight - 60) {
         const y = Math.max(0, scrollY + rect.top - 100);
-        window.scrollTo({top: y, behavior: 'instant'});
+        window.scrollTo({left: 0, top: y, behavior: 'instant'});
       }
+    }
+    if (target) {
+      const rect = target.getBoundingClientRect();
+      const left = Math.max(0, scrollX + rect.left + rect.width / 2 - innerWidth / 2);
+      window.scrollTo({left, top: scrollY, behavior: 'instant'});
     }
     // Wait for the browser to measure the card before positioning it.
     requestAnimationFrame(() => {
@@ -133,35 +138,55 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     });
   }
 
+  function loadingPanel(message, failed = false) {
+    root.hidden = false;
+    root.classList.add('tour-positioned');
+    root.innerHTML = `<div class="tour-shade"></div>
+      <section class="tour-card tour-loading-card" role="dialog" aria-modal="true" aria-label="Обзор улучшений" tabindex="-1">
+        <div class="tour-card-head"><span>Что мы улучшили</span><button type="button" data-tour="close" aria-label="Закрыть обзор">×</button></div>
+        <h2>${failed ? 'Не удалось открыть обзор' : 'Готовим обзор улучшений'}</h2>
+        <p role="status">${message}</p>
+        ${failed ? '<div class="tour-controls"><button type="button" data-tour="retry">Попробовать снова</button></div>' : '<div class="tour-load-progress" aria-hidden="true"></div>'}
+      </section>`;
+    root.querySelector('.tour-card').focus({preventScroll: true});
+  }
+
   async function start() {
     if (active || trigger.disabled) return;
-    trigger.disabled = true;
+    const ticket = ++version;
     const savedHash = location.hash;
+    active = true;
+    originalHash = savedHash;
+    trigger.disabled = true;
+    document.querySelector('.shell').inert = true;
+    document.querySelector('.globalbar').inert = true;
+    loadingPanel('Загружаем примеры и обводки. Первый шаг откроется автоматически.');
+    let timeout;
     try {
       const marker = new Image();
       marker.src = new URL('./assets/tour-marker.png', import.meta.url).href;
-      const [store, merchant] = await Promise.all([api('store'), api('merchant'), marker.decode()]);
-      preview = makePreview(store, merchant);
-      originalHash = savedHash;
+      const result = await Promise.race([
+        Promise.all([api('store'), api('merchant'), marker.decode()]),
+        new Promise((_, reject) => {
+          timeout = setTimeout(() => reject(new Error('loading timeout')), 15000);
+        }),
+      ]);
+      if (!active || version !== ticket) return;
+      preview = makePreview(result[0], result[1]);
       onStart();
-      active = true;
-      root.hidden = false;
-      document.querySelector('.shell').inert = true;
-      document.querySelector('.globalbar').inert = true;
       await show(0);
     } catch (error) {
-      active = false;
-      root.hidden = true;
-      document.querySelector('.shell').inert = false;
-      document.querySelector('.globalbar').inert = false;
-      trigger.textContent = 'Повторить обзор';
-      trigger.title = error.message;
+      if (active && version === ticket) {
+        loadingPanel('Проверьте соединение и попробуйте снова.', true);
+      }
     } finally {
+      clearTimeout(timeout);
       trigger.disabled = false;
     }
   }
 
   async function close() {
+    trigger.disabled = false;
     active = false;
     ++version;
     target = null;
@@ -169,14 +194,19 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     root.innerHTML = '';
     document.querySelector('.shell').inert = false;
     document.querySelector('.globalbar').inert = false;
+    if (preview) onEnd();
     preview = null;
-    onEnd();
     await navigate((originalHash || '#/shop').slice(2));
     trigger.focus();
   }
 
   root.addEventListener('click', (event) => {
     const action = event.target.closest('[data-tour]')?.dataset.tour;
+    if (action === 'retry') {
+      active = false;
+      trigger.disabled = false;
+      void start();
+    }
     if (action === 'close') void close();
     if (action === 'back' && index) void show(index - 1);
     if (action === 'next') void (index === steps.length - 1 ? close() : show(index + 1));

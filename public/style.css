@@ -381,3 +381,8 @@ img.shop-avatar { object-fit: cover; border-radius: 50%; }
 @media (prefers-reduced-motion: reduce) { .tour-marker { animation: none; --marker-angle: 360deg; } }
 
 .feature-tour:not(.tour-positioned) .tour-marker, .feature-tour:not(.tour-positioned) .tour-card { visibility: hidden; }
+
+.tour-card.tour-loading-card { left: 50%; top: 30%; transform: translateX(-50%); }
+.tour-load-progress { height: 4px; margin-top: 20px; border-radius: 3px; background: #ead5c9; overflow: hidden; }
+.tour-load-progress::after { content: ''; display: block; height: 100%; width: 40%; border-radius: inherit; background: #b84b35; animation: tour-loading 1.2s ease-in-out infinite alternate; }
+@keyframes tour-loading { to { transform: translateX(150%); } }
