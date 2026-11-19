@@ -20,7 +20,7 @@ await writeFile('dist/.nojekyll', '');
 await cp('pages/client.js', 'dist/pages-client.js');
 for (const file of ['app.js', 'pages-client.js']) {
   const script = await readFile('dist/' + file, 'utf8');
-  const versioned = script.replace(/(['"])(\.\/(?:tour|vk-icons|pages-client|market-worker)\.js)/g,
+  const versioned = script.replace(/(['"])(\.\/(?:tour|vk-icons|pages-client|market-worker)\.js)\1/g,
     (_, quote, path) => quote + path + '?v=' + version + quote);
   await writeFile('dist/' + file, versioned);
 }
