@@ -399,15 +399,19 @@ img.shop-avatar { object-fit: cover; border-radius: 50%; }
 .tour-marker { mix-blend-mode: multiply; position: fixed; pointer-events: none; object-fit: fill; z-index: 1; mask-image: conic-gradient(from -45deg, #000 0deg var(--marker-angle), transparent var(--marker-angle) 360deg); animation: draw-marker 1.3s cubic-bezier(.3,.1,.4,1) both; }
 @property --marker-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 @keyframes draw-marker { from { --marker-angle: 0deg; } to { --marker-angle: 360deg; } }
-.tour-card { position: fixed; z-index: 2; width: 300px; max-height: calc(100dvh - 90px); overflow: auto; padding: 15px; border: 1px solid #dfe3e9; border-radius: 12px; background: #fff; box-shadow: 0 8px 26px #172a481a; color: #253249; outline: none; }
-.tour-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #748096; font-size: 11px; font-weight: 600; }
-.tour-card-head button { flex: none; width: 24px; height: 24px; border: 0; border-radius: 5px; background: transparent; color: #798495; cursor: pointer; font-size: 22px; line-height: 1; }
-.tour-card h2 { margin: 9px 0 6px; font-size: 17px; line-height: 1.25; letter-spacing: 0; }
-.tour-card p { margin: 0; font-size: 13px; line-height: 1.5; color: #637084; }
-.tour-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; gap: 12px; }
-.tour-controls button { border: 0; border-radius: 9px; padding: 7px 10px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; color: #6c7788; background: transparent; }
-.tour-controls .tour-next { color: #a13f2a; background: #fbede7; }
-.tour-controls .tour-next:hover { background: #f7ded2; }
+.tour-card { position: fixed; z-index: 2; width: 340px; max-height: calc(100dvh - 90px); overflow: auto; padding: 18px; border: 1px solid #ffffffed; border-radius: 20px; background: #ffffffeb; -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 10px 32px #172a481a, inset 0 0 0 1px #ffffff80; color: #202b3b; outline: none; }
+.tour-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #4f5b6b; font-size: 11px; font-weight: 500; }
+.tour-card-head > span { padding: 5px 10px; border-radius: 20px; background: #ffffff80; }
+.tour-card-head button { flex: none; width: 26px; height: 26px; border: 0; border-radius: 50%; background: transparent; color: #4f5b6b; cursor: pointer; font-size: 23px; line-height: 1; }
+.tour-card-head button:hover { background: #ffffff80; }
+.tour-card h2 { position: relative; margin: 17px 0 10px; padding-left: 12px; font-size: 18px; line-height: 1.3; letter-spacing: 0; }
+.tour-card h2::before { content: ''; position: absolute; left: 0; top: 3px; bottom: 3px; width: 3px; border-radius: 3px; background: #ee8069; }
+.tour-card p { margin: 0 0 0 12px; font-size: 13px; line-height: 1.5; color: #3e4a5b; }
+.tour-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; gap: 12px; }
+.tour-controls button { border: 1px solid #c8d1de; border-radius: 12px; padding: 8px 13px; font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; color: #3e4a5b; background: #ffffff40; }
+.tour-controls button:hover { background: #ffffff80; }
+.tour-controls .tour-next { border-color: var(--blue); color: #fff; background: var(--blue); }
+.tour-controls .tour-next:hover { background: #0068e0; border-color: #0068e0; }
 .tour-controls button:disabled { opacity: .45; cursor: default; }
 .tour-card button:focus-visible { outline: 3px solid #3678bc; outline-offset: 3px; }
 .tour-card > small { display: block; margin-top: 13px; font-size: 11px; color: #8b8178; }
@@ -421,7 +425,6 @@ img.shop-avatar { object-fit: cover; border-radius: 50%; }
 .tour-load-progress::after { content: ''; display: block; height: 100%; width: 40%; border-radius: inherit; background: #b84b35; animation: tour-loading 1.2s ease-in-out infinite alternate; }
 @keyframes tour-loading { to { transform: translateX(150%); } }
 
-.tour-card-head > span::before { content: ''; display: inline-block; width: 5px; height: 5px; margin: 0 6px 1px 0; border-radius: 50%; background: #e77d61; }
 .tour-arrow { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; overflow: visible; }
 .tour-arrow path { fill: none; stroke: #d9694d; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: tour-arrow-draw .5s ease .65s forwards; }
 @keyframes tour-arrow-draw { to { stroke-dashoffset: 0; } }

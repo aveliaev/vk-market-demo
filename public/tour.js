@@ -185,7 +185,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
       }).join('')}
       <svg class="tour-arrow" aria-hidden="true">${targets.map((_, i) => `<path pathLength="1" style="animation-delay: ${.65 + i * .3}s" />`).join('')}</svg>
       <section class="tour-card" role="dialog" aria-label="Обзор улучшений" aria-modal="true" tabindex="-1">
-        <div class="tour-card-head"><span>Что мы улучшили · ${index + 1} / ${steps.length}</span><button type="button" data-tour="close" aria-label="Закрыть обзор">×</button></div>
+        <div class="tour-card-head"><span>Что улучшили. Шаг ${index + 1}/${steps.length}.</span><button type="button" data-tour="close" aria-label="Закрыть обзор">×</button></div>
         <h2>${title}</h2><p>${description}</p>
         <div class="tour-controls"><button type="button" data-tour="back" ${index ? '' : 'disabled'}>Назад</button><button type="button" class="tour-next" data-tour="next">${index === steps.length - 1 ? 'Завершить' : 'Дальше'} <span aria-hidden="true">→</span></button></div>
       </section>`;
@@ -216,7 +216,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     root.classList.add('tour-positioned');
     root.innerHTML = `<div class="tour-shade"></div>
       <section class="tour-card tour-loading-card" role="dialog" aria-modal="true" aria-label="Обзор улучшений" tabindex="-1">
-        <div class="tour-card-head"><span>Что мы улучшили</span><button type="button" data-tour="close" aria-label="Закрыть обзор">×</button></div>
+        <div class="tour-card-head"><span>Что улучшили.</span><button type="button" data-tour="close" aria-label="Закрыть обзор">×</button></div>
         <h2>${failed ? 'Не удалось открыть обзор' : 'Готовим обзор улучшений'}</h2>
         <p role="status">${message}</p>
         ${failed ? '<div class="tour-controls"><button type="button" data-tour="retry">Попробовать снова</button></div>' : '<div class="tour-load-progress" aria-hidden="true"></div>'}
