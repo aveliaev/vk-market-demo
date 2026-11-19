@@ -108,7 +108,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     const cx = (sx + ex) / 2 + (Math.abs(sx-ex) < Math.abs(sy-ey) ? 16 : 0);
     const cy = (sy + ey) / 2 + (Math.abs(sx-ex) >= Math.abs(sy-ey) ? -16 : 0);
     const angle = Math.atan2(ey-cy, ex-cx);
-    const wing = (offset) => [ex - 8 * Math.cos(angle+offset), ey - 8 * Math.sin(angle+offset)];
+    const wing = (offset) => [ex - 11 * Math.cos(angle+offset), ey - 11 * Math.sin(angle+offset)];
     const a = wing(.5);
     const b = wing(-.5);
     path.setAttribute('d', `M ${sx} ${sy} Q ${cx} ${cy} ${ex} ${ey} M ${a[0]} ${a[1]} L ${ex} ${ey} L ${b[0]} ${b[1]}`);
