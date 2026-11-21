@@ -248,8 +248,32 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     rings.forEach((ring, i) => paths[i]?.setAttribute('d', tourArrowPath(card.getBoundingClientRect(), ring.getBoundingClientRect())));
   }
 
-  async function show(next) {
+  async function prepare() {
+    const ticket = ++version;
+    index = 0;
+    targets = [];
     root.classList.remove('tour-positioned');
+    root.classList.add('tour-preparing');
+    await navigate('deal/tour-protection-before');
+    if (!active || ticket !== version) return;
+    root.innerHTML = `<div class="tour-shade"></div>
+      <section class="tour-card tour-preparation-card" role="dialog" aria-label="Подготовка к обзору" aria-modal="true" tabindex="-1">
+        <div class="tour-card-head"><span>Перед первым шагом</span><button type="button" data-tour="close" aria-label="Закрыть обзор">×</button></div>
+        <h2>Вы покупаете у незнакомого магазина</h2>
+        <p>Представьте: в переписке вы выбрали две кружки и согласовали доставку. Продавец прислал заказ — теперь нужно решить, можно ли вносить предоплату.</p>
+        <div class="tour-preparation-product">
+          <div class="mini-product"><img src="./assets/cups.webp" width="64" height="64" alt="Керамические кружки «Утро»"><div><strong>Кружки «Утро» · 2 шт.</strong><span>Керамика «Форма» · заказ ЗС-1042</span></div></div>
+          <div class="detail-row sum"><span>С доставкой в пункт выдачи</span><strong>2 690 ₽</strong></div>
+        </div>
+        <p>Пройдём этот заказ с двух сторон: покупателя и продавца. Сначала посмотрим, какую защиту видно до оплаты.</p>
+        <div class="tour-controls"><button type="button" data-tour="close">Посмотреть самостоятельно</button><button type="button" class="tour-next" data-tour="begin-steps">Перейти к первому шагу <span aria-hidden="true">→</span></button></div>
+      </section>`;
+    root.classList.add('tour-positioned');
+    root.querySelector('.tour-card').focus({preventScroll: true});
+  }
+
+  async function show(next) {
+    root.classList.remove('tour-positioned', 'tour-preparing');
     index = next;
     const ticket = ++version;
     targets = [];
@@ -274,7 +298,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
         <div class="tour-card-head"><span>Что улучшили. Шаг ${index + 1}/${steps.length}.</span><button type="button" data-tour="close" aria-label="Закрыть обзор">×</button></div>
         <span class="tour-kind ${kind === 'new' ? 'new' : ''}">${kind === 'new' ? 'Предлагаем новую функцию' : 'Улучшаем существующее'}</span>
         <h2>${title}</h2><p>${description}</p>
-        <div class="tour-controls"><button type="button" data-tour="back" ${index ? '' : 'disabled'}>Назад</button><button type="button" class="tour-next" data-tour="next">${index === steps.length - 1 ? 'Завершить' : 'Дальше'} <span aria-hidden="true">→</span></button></div>
+        <div class="tour-controls"><button type="button" data-tour="back">Назад</button><button type="button" class="tour-next" data-tour="next">${index === steps.length - 1 ? 'Завершить' : 'Дальше'} <span aria-hidden="true">→</span></button></div>
       </section>`;
     if (targets.length) {
       const rects = targets.map((target) => target.getBoundingClientRect());
@@ -322,7 +346,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     trigger.disabled = true;
     document.querySelector('.shell').inert = true;
     document.querySelector('.globalbar').inert = true;
-    loadingPanel('Загружаем примеры и обводки. Первый шаг откроется автоматически.');
+    loadingPanel('Загружаем примеры и обводки. Сначала покажем контекст покупки.');
     let timeout;
     try {
       const markers = Object.values(markerAssets).map((src) => {
@@ -339,7 +363,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
       if (!active || version !== ticket) return;
       preview = makePreview(result[0], result[1]);
       onStart();
-      await show(0);
+      await prepare();
     } catch (error) {
       if (active && version === ticket) {
         loadingPanel('Проверьте соединение и попробуйте снова.', true);
@@ -357,6 +381,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     targets = [];
     root.hidden = true;
     root.innerHTML = '';
+    root.classList.remove('tour-preparing');
     document.querySelector('.shell').inert = false;
     document.querySelector('.globalbar').inert = false;
     if (preview) onEnd();
@@ -375,7 +400,8 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
       void start();
     }
     if (action === 'close') void close();
-    if (action === 'back' && index) void show(index - 1);
+    if (action === 'begin-steps') void show(0);
+    if (action === 'back') void (index ? show(index - 1) : prepare());
     if (action === 'next') void (index === steps.length - 1 ? close() : show(index + 1));
   });
   document.addEventListener('keydown', (event) => {
