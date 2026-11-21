@@ -141,7 +141,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
   let targets = [];
   let frame;
   let welcoming = false;
-  const welcomeKey = 'vk-market-jury-welcome-v1';
+  const welcomeKey = 'vk-market-phoenix-jury-welcome-v2';
 
   function rememberWelcome() {
     try { sessionStorage.setItem(welcomeKey, 'seen'); } catch { /* The tour also works without browser storage. */ }
@@ -160,7 +160,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
   }
 
   async function welcome() {
-    if (active || welcoming || !['', '#/', '#/shop'].includes(location.hash)) return;
+    if (active || welcoming) return;
     try { if (sessionStorage.getItem(welcomeKey)) return; } catch { /* Show the introduction when storage is unavailable. */ }
     const ticket = version;
     const marker = new Image();
@@ -175,10 +175,10 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
       <img class="tour-marker" data-shape="pill" src="${markerAssets.pill}" alt="" aria-hidden="true">
       <svg class="tour-arrow" aria-hidden="true"><path pathLength="1" /></svg>
       <section class="tour-card" role="dialog" aria-label="Обзор проекта для жюри" tabindex="-1">
-        <div class="tour-card-head"><span>Для членов жюри</span><button type="button" data-tour="welcome-dismiss" aria-label="Закрыть приветствие">×</button></div>
-        <h2>Ключевые улучшения — по шагам</h2>
-        <p>Для удобства оценки мы подготовили обзор из ${steps.length} шагов. Нажмите «Показать улучшения» — покажем доработки существующих сценариев VK и функции, которые предлагаем добавить.</p>
-        <div class="tour-controls"><button type="button" data-tour="welcome-dismiss">Самостоятельно</button><button type="button" class="tour-next" data-tour="welcome-start">Начать обзор <span aria-hidden="true">→</span></button></div>
+        <div class="tour-card-head"><span>Команда «Феникс»</span><button type="button" data-tour="welcome-dismiss" aria-label="Закрыть приветствие">×</button></div>
+        <h2>Уважаемые члены жюри!</h2>
+        <p>Приглашаем вас пройти короткий интерактивный обзор и самостоятельно оценить улучшения магазина ВКонтакте. Первые четыре шага покажут защиту до оплаты, удержание денег, спор и выплату магазину.</p>
+        <div class="tour-controls"><button type="button" class="tour-next" data-tour="welcome-start">Начать обзор <span aria-hidden="true">→</span></button><button type="button" data-tour="welcome-dismiss">Посмотреть самостоятельно</button></div>
       </section>`;
     requestAnimationFrame(() => {
       if (!welcoming || ticket !== version) return;

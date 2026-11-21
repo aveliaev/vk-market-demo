@@ -568,3 +568,5 @@ img.shop-avatar { object-fit: cover; border-radius: 50%; }
 .deal-jury-tools .inline-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .deal-jury-tools > div > small { display: block; margin-top: 12px; font-size: .72rem; }
 .deal-stage form .btn { width: 100%; }
+
+.tour-welcome .tour-controls { flex-direction: column; align-items: stretch; gap: 8px; }
