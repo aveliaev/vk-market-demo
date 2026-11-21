@@ -71,7 +71,7 @@ export function createProtectionDemo({ main, icon, rub, safe, datetime, date, ro
   function money() {
     const before = ['offer','checkout','payment'].includes(order.phase);
     const final = ['completed','refunded'].includes(order.phase);
-    return `<div class="deal-money ${final ? 'settled' : ''}" role="status">${icon(final ? 'check' : 'shield')}<div><strong>${moneyLocation(order)}</strong><span>${before ? 'До подтверждения тестового платежа списания нет.' : order.phase === 'completed' ? `Магазину перечислено ${rub(order.payout)} после комиссий.` : order.phase === 'refunded' ? `${rub(order.refunded)} возвращены исходным способом оплаты. Магазину — 0 ₽.` : ['dispute','approved'].includes(order.phase) ? 'Выплата приостановлена. До решения деньги не переводятся магазину.' : 'Магазин получит выплату после приёмки или окончания проверки без спора.'}</span></div><b>${rub(order.amount)}</b></div>`;
+    return `<div class="deal-money ${final ? 'settled' : ''}" role="status">${icon(final ? 'check' : 'shield')}<div><strong>${moneyLocation(order)}</strong><span>${before ? 'До подтверждения тестового платежа списания нет.' : order.phase === 'completed' ? `Магазину перечислено ${rub(order.payout)} после комиссий.` : order.phase === 'refunded' ? `${rub(order.refunded)} возвращены исходным способом оплаты. Магазину — 0 ₽.` : order.phase === 'approved' ? 'Возврат одобрен. Партнёр готовит зачисление покупателю; выплата магазину отменена.' : order.phase === 'dispute' ? 'Выплата приостановлена. До решения деньги не переводятся магазину.' : 'Магазин получит выплату после приёмки или окончания проверки без спора.'}</span></div><b>${rub(order.phase === 'completed' ? order.payout : order.amount)}</b></div>`;
   }
 
   function summary(embedded = false) {
