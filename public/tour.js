@@ -1,23 +1,17 @@
 const steps = [
-  ['shop', '.friend-sticker', 'Знакомый выбор помогает решиться', 'Видно, какие товары уже купили друзья.'],
-  ['shop', '.catalog-card[href="#/product/plate"]', 'Срок понятен ещё в каталоге', 'Индивидуальный товар отмечен отдельно. Максимальный срок изготовления виден до открытия карточки.'],
-  ['product/cups', '.product-actions', 'От выбора сразу к покупке', 'Готовый товар можно оформить через корзину или купить сразу.'],
-  ['product/plate', ['.production-time', '.product-actions [data-action="compose"]'], 'Сначала согласуем детали', 'Максимальный срок изготовления виден заранее. По кнопке «Обсудить заказ» можно согласовать детали и дату изготовления с мастером в чате.'],
-  ['cart', '.cart-line', 'Несколько товаров — один заказ', 'Количество и состав можно изменить перед оформлением.'],
-  ['checkout/tour-stock', '.delivery-fields', 'Добавили выбор получения', 'Самовывоз или пункт выдачи. Стоимость и срок видны до оплаты.'],
-  ['checkout/tour-custom', '.checkout-summary .checkout-block', 'Два срока показаны отдельно', 'Когда мастер закончит работу и когда покупатель получит заказ.'],
-  ['checkout/tour-stock', '.payment-choices', 'Способ оплаты выбирает покупатель', 'Карта, СБП и VK Кошелёк доступны на одном экране.'],
-  ['checkout/tour-stock', '#cashback-preview', 'Выгода видна в рублях', 'Сумма кешбэка показана перед оплатой.'],
-  ['checkout/tour-paid', '.payment-panel .inline-actions', 'Результат покупки под рукой', 'Подтверждение оплаты и чек доступны в заказе.'],
-  ['receipt/tour-paid', '.receipt-panel h2', 'Чек можно открыть снова', 'Состав покупки, сумма и способ оплаты сохранены в деталях заказа.'],
-  ['purchases', '.purchase-record .registry-head', 'История покупки сохраняется', 'Можно вернуться к заказу, проверить статус и открыть чек.'],
-  ['chat', '.chat-order', 'Договорённость превращается в заказ', 'Мастер фиксирует цену и дату. Покупатель переходит к оплате из переписки.'],
-  ['seller', '.progress', 'Подключение по шагам', 'Продавец видит, что уже готово и что нужно сделать дальше.'],
-  ['price', '#fee-preview .detail-row.emphasis', 'Продавец заранее видит расчёт', 'Комиссии и ожидаемая выплата показаны до сохранения цены.'],
-  ['orders', '.registry tbody tr', 'Все заказы в одном реестре', 'Видно, какие покупки оплачены и что нужно подготовить или выдать.'],
-  ['analytics', '.metrics.four', 'Понятно, как идут продажи', 'Продавец видит доход, долю оплат и конверсию.'],
-  ['analytics', '.funnel-steps', 'Видно, где покупатели останавливаются', 'Воронка показывает путь от открытия товара до оплаты.'],
-  ['post', '.post-suggestion', 'Пост помогает перейти к покупке', 'Продавцу предлагаем прикрепить готовый товар, когда каталог и оплата подключены.'],
+  ['shop', '.friend-sticker', 'Покупки друзей — у конкретного товара', 'Социальная метка уже есть в VK. В концепте размещаем её на конкретном товаре, чтобы помочь с выбором в каталоге.', 'improvement'],
+  ['shop', '.catalog-card[href="#/product/plate"]', 'Срок изготовления виден в каталоге', 'У индивидуального товара отдельно показываем максимальный срок изготовления. Покупатель оценивает ожидание ещё до открытия карточки.', 'improvement'],
+  ['product/plate', ['.production-time', '.product-actions [data-action="compose"]'], 'Индивидуальный заказ сначала обсуждаем', 'Переписка с продавцом уже доступна в VK. Дорабатываем сценарий: рядом с максимальным сроком предлагаем согласовать детали и дату изготовления.', 'improvement'],
+  ['checkout/tour-stock', '.delivery-before-payment', 'Стоимость и срок — до оплаты', 'Выбор доставки в VK уже есть. Наша доработка — один понятный блок с местом, сроком и стоимостью получения до подтверждения платежа.', 'improvement'],
+  ['checkout/tour-custom', '.delivery-before-payment', 'Два срока для индивидуального заказа', 'Предлагаем отдельно показывать согласованную дату готовности изделия и срок его получения. Время изготовления не смешивается с доставкой.', 'new'],
+  ['checkout/tour-stock', '.payment-choices', 'Понятный общий чекаут', 'Способы оплаты уже существуют. В концепте собираем их на одном экране с условиями получения и общей суммой заказа.', 'improvement'],
+  ['checkout/tour-stock', '#cashback-preview', 'Выгода показана до подтверждения', 'Кешбэк VK уже существует. Дорабатываем его подачу: покупатель сразу видит ожидаемую сумму для этого заказа.', 'improvement'],
+  ['chat/tour-question', '.chat-order-builder', 'Фиксируем договорённости перед оплатой', 'Карточка с кнопкой оплаты в VK уже есть. Наша доработка — продавец сначала фиксирует состав, цену и дату готовности индивидуального заказа, затем отправляет его на оплату.', 'improvement'],
+  ['seller', '.progress', 'Понятнее путь подключения', 'Подключение оплаты и работа с самозанятыми уже существуют. В концепте делаем этапы, текущий статус и оставшиеся действия видимыми в одном месте.', 'improvement'],
+  ['price', '#fee-preview', 'Расчёт выплаты при настройке цены', 'Дорабатываем настройку цены: заранее показываем комиссии и ожидаемую выплату по каждому способу оплаты.', 'improvement'],
+  ['analytics', '.chat-sales-metrics', 'Отдельный учёт заказов из переписки', 'Базовые показатели магазина уже есть в VK. Предлагаем отдельно считать отправленные из чата заказы, открытия оформления и оплаты, чтобы оценивать этот сценарий.', 'new'],
+  ['analytics', '.seller-economy-inputs', 'Учитываем внешние продажи и расходы', 'Предлагаем дополнять данные магазина внешними продажами, себестоимостью и расходами на продвижение. Они участвуют в расчёте доли продаж и дохода продавца.', 'new'],
+  ['post', '.post-suggestion', 'Подсказка в подходящий момент', 'Прикрепление товара к посту уже есть. Предлагаем подсказку продавцу с активным каталогом и оплатой: прикрепить именно товар в наличии.', 'new'],
 ];
 
 const markerAssets = {
@@ -133,7 +127,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
       <section class="tour-card" role="dialog" aria-label="Обзор проекта для жюри" tabindex="-1">
         <div class="tour-card-head"><span>Для членов жюри</span><button type="button" data-tour="welcome-dismiss" aria-label="Закрыть приветствие">×</button></div>
         <h2>Ключевые улучшения — по шагам</h2>
-        <p>Для удобства оценки мы подготовили обзор из ${steps.length} шагов. Нажмите «Показать улучшения» — мы проведём вас по основным изменениям для покупателя и продавца.</p>
+        <p>Для удобства оценки мы подготовили обзор из ${steps.length} шагов. Нажмите «Показать улучшения» — покажем доработки существующих сценариев VK и функции, которые предлагаем добавить.</p>
         <div class="tour-controls"><button type="button" data-tour="welcome-dismiss">Самостоятельно</button><button type="button" class="tour-next" data-tour="welcome-start">Начать обзор <span aria-hidden="true">→</span></button></div>
       </section>`;
     requestAnimationFrame(() => {
@@ -168,7 +162,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     return {
       store: {...store, eligible: true}, merchant, posts: [], faq: [],
       seller: {...merchant.seller, stage: 'connected', payouts: true, receipts: true, registered: true},
-      questions: [], chatOrders: [custom], purchases: [paid],
+      questions: [{id: 'tour-question', product_id: plate.id, variant: plate.variants[0], question: 'Хочу тарелку с индивидуальной росписью. Согласуем состав, цену и дату готовности?', reply: 'Согласовали одну тарелку в кобальтовом цвете. Цена и дата готовности зафиксированы в заказе.'}], chatOrders: [{...custom, questionId: 'tour-question'}], purchases: [paid],
       cart: {lines: base.lines, total: base.total, revision: 'tour'},
       orders: {'tour-stock': base, 'tour-custom': custom, 'tour-paid': paid},
     };
@@ -221,10 +215,10 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     const ticket = ++version;
     targets = [];
     root.innerHTML = '<div class="tour-shade"></div><p class="tour-loading" role="status">Открываем следующий раздел…</p>';
-    const [route, selector, title, description] = steps[index];
+    const [route, selector, title, description, kind] = steps[index];
     await navigate(route);
     if (!active || ticket !== version) return;
-    if (index === 8) {
+    if (selector === '#cashback-preview') {
       state.method = 'wallet';
       const radio = document.querySelector('[name="method"][value="wallet"]');
       if (radio) radio.checked = true;
@@ -239,6 +233,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
       <svg class="tour-arrow" aria-hidden="true">${targets.map((_, i) => `<path pathLength="1" style="animation-delay: ${.65 + i * .3}s" />`).join('')}</svg>
       <section class="tour-card" role="dialog" aria-label="Обзор улучшений" aria-modal="true" tabindex="-1">
         <div class="tour-card-head"><span>Что улучшили. Шаг ${index + 1}/${steps.length}.</span><button type="button" data-tour="close" aria-label="Закрыть обзор">×</button></div>
+        <span class="tour-kind ${kind === 'new' ? 'new' : ''}">${kind === 'new' ? 'Предлагаем новую функцию' : 'Улучшаем существующее'}</span>
         <h2>${title}</h2><p>${description}</p>
         <div class="tour-controls"><button type="button" data-tour="back" ${index ? '' : 'disabled'}>Назад</button><button type="button" class="tour-next" data-tour="next">${index === steps.length - 1 ? 'Завершить' : 'Дальше'} <span aria-hidden="true">→</span></button></div>
       </section>`;

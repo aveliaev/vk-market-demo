@@ -335,11 +335,13 @@ function chat() {
         ${state.questions.map(questionThread).join('')}`}
         ${state.chatOrders.filter((order) => !selected || order.questionId === selected.id).map((order) => {
           const payable = order.status === 'unpaid' || order.status === 'pending';
-          return `<div class="chat-order"><div class="feature-icon">${icon('receipt')}</div><div><small>Заказ ${safe(order.id)}</small><h3>${safe(order.title)}</h3><p>${safe(order.variant)} · ${order.quantity} шт. · ${rub(order.amount)}</p><p>${payable ? 'Оплата до ' + datetime(order.expires) : safe(order.statusLabel)}</p>
+          return `<div class="chat-order"><div class="feature-icon">${icon('receipt')}</div><div><small>Заказ ${safe(order.id)}</small><h3>${safe(order.title)}</h3><p>${safe(order.variant)} · ${order.quantity} шт. · ${rub(order.amount)}</p>
+            ${order.ready ? `<p class="chat-agreement">Согласованная дата готовности — ${date(order.ready)}</p>` : ''}
+            <p>${payable ? 'Оплата до ' + datetime(order.expires) : safe(order.statusLabel)}</p>
             <a class="btn ${payable ? 'primary' : 'secondary'}" href="#/checkout/${order.token}">${payable ? 'Оплатить заказ' : 'Открыть заказ'}</a></div></div>`;
         }).join('')}
       </div></section>
-      <section class="panel section"><h2>Сформировать заказ</h2><p class="muted">Карточка оплаты появится в переписке.</p>
+      <section class="panel section chat-order-builder"><h2>Зафиксировать договорённости</h2><p class="muted">После обсуждения укажите согласованные состав, цену и дату готовности. Затем отправьте заказ покупателю на оплату в переписке.</p>
         <form data-form="chat"><input type="hidden" name="questionId" value="${safe(selected?.id)}"><input type="hidden" name="productId" value="${product.id}">
           <label class="field">Товар<input name="title" maxlength="100" required value="${safe(product.title)}"></label>
           <label class="field">Вариант<input name="variant" maxlength="80" required value="${safe(selected?.variant ?? 'Кобальтовая')}"></label>
@@ -396,8 +398,9 @@ function funnelPanel(data, orders) {
   return `<section class="panel section funnel"><h2>Воронка покупки</h2>
     <p class="muted">Уникальные браузеры покупателей с момента включения учёта. Быстрая покупка пропускает корзину.</p>
     <div class="funnel-steps">${[['view','Открыли товар'],['cart','Добавили в корзину'],['checkout','Начали оформление'],['paid','Оплатили']].map(([stage, label]) => `<div><span>${label}</span><strong>${count('store',stage)}</strong></div>`).join('')}</div>
-    <h3>Заказы из переписки</h3>${row('Отправлено заказов',String(chats.length))}${row('Оплачено заказов',String(chats.filter((o) => o.paidAt).length))}
+    <div class="chat-sales-metrics"><h3>Заказы из переписки</h3>${row('Отправлено заказов',String(chats.length))}${row('Оплачено заказов',String(chats.filter((o) => o.paidAt).length))}
     ${row('Покупатели, открывшие оформление',String(count('chat','checkout')))}${row('Покупатели, оплатившие заказ',String(count('chat','paid')))}
+    </div>
   </section>`;
 }
 
@@ -432,8 +435,8 @@ function orderDetails(o) {
     <div class="checkout-block">
       <h2>Получение</h2>
       ${deliveryFields(o)}
-      ${deliverySummary(o)}
-      ${row('Стоимость получения', o.shipping ? rub(o.shipping) : 'Бесплатно')}
+      <div class="delivery-before-payment">${deliverySummary(o)}
+      ${row('Стоимость получения', o.shipping ? rub(o.shipping) : 'Бесплатно')}</div>
     </div>
     <div class="checkout-block">
       <h2>Состав заказа</h2>
@@ -448,22 +451,22 @@ function methodChoices() {
 
 function checkoutComparison() {
   return `<details class="panel flow-comparison">
-    <summary>${icon('info')}Сравнить с оплатой в чате${icon('chevron', 'comparison-chevron')}</summary>
+    <summary>${icon('info')}Что дорабатываем в оформлении${icon('chevron', 'comparison-chevron')}</summary>
     <div class="comparison-columns">
       <section class="comparison-path">
-        <h2>Сценарий на скриншотах VK</h2>
+        <h2>Что уже есть в VK</h2>
         <ol>
-          <li>Покупатель оформляет заказ из корзины.</li>
-          <li>В чате появляется сообщение с номером заказа, ссылкой и суммой за товар.</li>
-          <li>Стоимость и срок доставки, а также порядок оплаты уточняются у продавца в чате.</li>
+          <li>Оформление из корзины, выбор получения и онлайн-оплата.</li>
+          <li>Карточка заказа в чате с номером, суммой и кнопкой «Оплатить заказ».</li>
+          <li>История покупок и статусы заказов.</li>
         </ol>
       </section>
       <section class="comparison-path proposed">
-        <h2>Сценарий MVP для готового товара</h2>
+        <h2>Что дорабатываем в MVP</h2>
         <ol>
-          <li>На оформлении уже видны стоимость и срок получения в мастерской или пункте выдачи.</li>
-          <li>Покупатель выбирает карту, СБП или VK Кошелёк и подтверждает платёж.</li>
-          <li>Подтверждение заказа и чек доступны в деталях заказа.</li>
+          <li>Место, стоимость и срок получения собраны в понятном блоке до оплаты.</li>
+          <li>Существующие способы оплаты показываем в общем чекауте с итоговой суммой и условиями получения.</li>
+          <li>Для индивидуального заказа продавец фиксирует состав, цену и дату готовности перед отправкой на оплату.</li>
         </ol>
       </section>
     </div>
@@ -574,7 +577,7 @@ function analytics() {
       ${row('Оплаченный оборот до возвратов', rub(a.gross))}${row('Возвраты · ' + a.refunds, rub(a.refundsAmount))}
       ${row('Эквайринг продавца', rub(a.acquiring))}${row('Выдано чеков', a.receipts + ' из ' + a.confirmed)}
       ${row('Платежи на проверке', String(a.pending))}</section>
-    <section class="panel section"><h2>Внешние продажи и расходы</h2><p class="muted">Демо-данные можно заменить значениями из реестра магазина.</p>
+    <section class="panel section seller-economy-inputs"><h2>Внешние продажи и расходы</h2><p class="muted">Демо-данные можно заменить значениями из реестра магазина.</p>
       <form data-form="economy"><div class="form-pair">${economyFields.map(([key, label, scale]) => `<label class="field">${label}<input name="${key}" type="number" min="0" max="${1000000000 / scale}" step="${1 / scale}" value="${scale === 1 ? e[key] : cashInput(e[key])}" required></label>`).join('')}</div><button class="btn primary">Обновить расчёт</button></form>
     </section></div>`;
 }
