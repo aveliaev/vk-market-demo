@@ -8,7 +8,7 @@ const steps = [
   ['checkout/tour-stock', '#cashback-preview', 'Выгода показана до подтверждения', 'Кешбэк VK уже существует. Дорабатываем его подачу: покупатель сразу видит ожидаемую сумму для этого заказа.', 'improvement'],
   ['chat/tour-question', '.chat-order-builder', 'Фиксируем договорённости перед оплатой', 'Карточка с кнопкой оплаты в VK уже есть. Наша доработка — продавец сначала фиксирует состав, цену и дату готовности индивидуального заказа, затем отправляет его на оплату.', 'improvement'],
   ['seller', '.progress', 'Понятнее путь подключения', 'Подключение оплаты и работа с самозанятыми уже существуют. В концепте делаем этапы, текущий статус и оставшиеся действия видимыми в одном месте.', 'improvement'],
-  ['price', '#fee-preview', 'Расчёт выплаты при настройке цены', 'Дорабатываем настройку цены: заранее показываем комиссии и ожидаемую выплату по каждому способу оплаты.', 'improvement'],
+  ['price', '#fee-preview', 'Расчёт выплаты при настройке цены', 'Дорабатываем настройку цены: заранее показываем комиссии и ожидаемую выплату по каждому способу оплаты.', 'improvement', {shape: 'frame', padX: 32, padY: 36}],
   ['analytics', '.chat-sales-metrics', 'Отдельный учёт заказов из переписки', 'Базовые показатели магазина уже есть в VK. Предлагаем отдельно считать отправленные из чата заказы, открытия оформления и оплаты, чтобы оценивать этот сценарий.', 'new'],
   ['analytics', '.seller-economy-inputs', 'Учитываем внешние продажи и расходы', 'Предлагаем дополнять данные магазина внешними продажами, себестоимостью и расходами на продвижение. Они участвуют в расчёте доли продаж и дохода продавца.', 'new'],
   ['post', '.post-suggestion', 'Подсказка в подходящий момент', 'Прикрепление товара к посту уже есть. Предлагаем подсказку продавцу с активным каталогом и оплатой: прикрепить именно товар в наличии.', 'new'],
@@ -60,6 +60,12 @@ export function tourArrowPath(c, r) {
   } else if (direction[0] && centerY < c.top - 18) {
     start = [direction[0] > 0 ? c.right - 18 : c.left + 18, c.top - 5];
     departure = [0, -1];
+  } else if (direction[1] && centerX < c.left - 18) {
+    start = [c.left - 5, direction[1] > 0 ? c.bottom - 18 : c.top + 18];
+    departure = [-1, 0];
+  } else if (direction[1] && centerX > c.right + 18) {
+    start = [c.right + 5, direction[1] > 0 ? c.bottom - 18 : c.top + 18];
+    departure = [1, 0];
   }
   const [sx, sy] = start;
   const [ex, ey] = end;
@@ -75,6 +81,20 @@ export function tourArrowPath(c, r) {
   const a = wing(.5);
   const b = wing(-.5);
   return `M ${sx} ${sy} C ${c1x} ${c1y} ${c2x} ${c2y} ${ex} ${ey} M ${a[0]} ${a[1]} L ${ex} ${ey} L ${b[0]} ${b[1]}`;
+}
+
+export function tourCardPosition(ring, width, height, viewportWidth, viewportHeight) {
+  const gap = 48;
+  const centerX = (ring.left + ring.right) / 2;
+  const centeredLeft = Math.max(16, Math.min(viewportWidth - width - 16, centerX - width / 2));
+  const positions = [
+    [ring.right + gap, ring.top],
+    [ring.left - width - gap, ring.top],
+    [centeredLeft, ring.bottom + gap],
+    [centeredLeft, ring.top - height - gap],
+  ];
+  const fits = ([x,y]) => x >= 16 && x + width <= viewportWidth - 16 && y >= 70 && y + height <= viewportHeight - 16;
+  return positions.find(fits) ?? [viewportWidth - width - 20, Math.max(70, viewportHeight - height - 20)];
 }
 
 export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
@@ -180,30 +200,18 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     const card = root.querySelector('.tour-card');
     if (!rings.length || !card) return;
     const rects = targets.map((target) => target.getBoundingClientRect());
-    const rect = {
-      left: Math.min(...rects.map((r) => r.left)),
-      right: Math.max(...rects.map((r) => r.right)),
-      top: Math.min(...rects.map((r) => r.top)),
-      bottom: Math.max(...rects.map((r) => r.bottom)),
-    };
-    let padding = 0;
+    const options = welcoming ? {} : steps[index][5] ?? {};
     rects.forEach((r, i) => {
-      const padX = Math.max(18, r.width * .05);
-      const padY = welcoming ? 6 : Math.max(16, r.height * .05);
-      padding = Math.max(padding, padX, padY);
+      const padX = Math.max(options.padX ?? 18, r.width * .05);
+      const padY = welcoming ? 6 : Math.max(options.padY ?? 16, r.height * .05);
       Object.assign(rings[i].style, {left: r.left - padX + 'px', top: r.top - padY + 'px', width: r.width + 2 * padX + 'px', height: r.height + 2 * padY + 'px'});
     });
-    const width = card.offsetWidth;
-    const height = card.offsetHeight;
-    const gap = padding + 48;
-    const positions = [
-      [rect.right + gap, rect.top],
-      [rect.left - width - gap, rect.top],
-      [rect.right - width, rect.bottom + gap],
-      [rect.right - width, rect.top - height - gap],
-    ];
-    const fits = ([x,y]) => x >= 16 && x + width <= innerWidth - 16 && y >= 70 && y + height <= innerHeight - 16;
-    const [x,y] = positions.find(fits) ?? [innerWidth - width - 20, innerHeight - height - 20];
+    const bounds = rings.map((ring) => ring.getBoundingClientRect());
+    const ringBounds = {
+      left: Math.min(...bounds.map((r) => r.left)), right: Math.max(...bounds.map((r) => r.right)),
+      top: Math.min(...bounds.map((r) => r.top)), bottom: Math.max(...bounds.map((r) => r.bottom)),
+    };
+    const [x,y] = tourCardPosition(ringBounds, card.offsetWidth, card.offsetHeight, innerWidth, innerHeight);
     card.style.left = Math.max(16,x) + 'px';
     card.style.top = Math.max(70,y) + 'px';
     rings.forEach((ring, i) => paths[i]?.setAttribute('d', tourArrowPath(card.getBoundingClientRect(), ring.getBoundingClientRect())));
@@ -215,7 +223,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     const ticket = ++version;
     targets = [];
     root.innerHTML = '<div class="tour-shade"></div><p class="tour-loading" role="status">Открываем следующий раздел…</p>';
-    const [route, selector, title, description, kind] = steps[index];
+    const [route, selector, title, description, kind, marker = {}] = steps[index];
     await navigate(route);
     if (!active || ticket !== version) return;
     if (selector === '#cashback-preview') {
@@ -227,7 +235,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
     targets = (Array.isArray(selector) ? selector : [selector]).map((entry) => document.querySelector(entry)).filter(Boolean);
     root.innerHTML = `<div class="tour-shade"></div>
       ${targets.map((target, i) => {
-        const shape = markerShape(target);
+        const shape = marker.shape ?? markerShape(target);
         return `<img class="tour-marker" data-shape="${shape}" src="${markerAssets[shape]}" style="animation-delay: ${i * .3}s" alt="" aria-hidden="true">`;
       }).join('')}
       <svg class="tour-arrow" aria-hidden="true">${targets.map((_, i) => `<path pathLength="1" style="animation-delay: ${.65 + i * .3}s" />`).join('')}</svg>

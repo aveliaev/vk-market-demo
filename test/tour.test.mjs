@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { tourArrowPath } from '../public/tour.js';
+import { tourArrowPath, tourCardPosition } from '../public/tour.js';
 
 const box = (left, top, width, height) => ({left, top, right: left + width, bottom: top + height, width, height});
 const points = (path) => path.match(/-?\d+(?:\.\d+)?/g).map(Number);
@@ -35,4 +35,28 @@ test('обычные стрелки с четырёх сторон сохран�
     assert.ok(p.every(Number.isFinite));
   }
   assert.equal(tourArrowPath(box(490, 290, 200, 100), ring), '');
+});
+
+test('стрелка к широкой области выше плашки плавно выходит влево', () => {
+  const card = box(920, 396, 340, 303.59);
+  const ring = box(176.4, 126.47, 1113.2, 200);
+  const [sx, sy, c1x, c1y, c2x, c2y, ex, ey] = points(tourArrowPath(card, ring));
+  assert.equal(sx, card.left - 5);
+  assert.ok(sy > card.top && sy < card.bottom);
+  assert.equal(c1y, sy);
+  assert.ok(c1x < sx && c1x > ex);
+  assert.equal(c2x, ex);
+  assert.ok(c2y < sy && c2y > ey);
+  assert.equal(ey, ring.bottom + 5);
+});
+
+test('плашка шага 11 располагается по центру под широкой областью аналитики', () => {
+  const ring = box(176.4, 126.47, 1113.2, 200);
+  const [left, top] = tourCardPosition(ring, 340, 303.59, 1280, 720);
+  assert.equal(left + 170, (ring.left + ring.right) / 2);
+  assert.ok(top > ring.bottom && top + 303.59 <= 704);
+  const p = points(tourArrowPath(box(left, top, 340, 303.59), ring));
+  assert.equal(p[0], p[6], 'стрелка должна указывать вверх без бокового изгиба');
+  assert.equal(p[2], p[6]);
+  assert.equal(p[4], p[6]);
 });
