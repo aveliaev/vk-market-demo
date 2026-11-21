@@ -87,9 +87,10 @@ export function tourCardPosition(ring, width, height, viewportWidth, viewportHei
   const gap = 48;
   const centerX = (ring.left + ring.right) / 2;
   const centeredLeft = Math.max(16, Math.min(viewportWidth - width - 16, centerX - width / 2));
+  const sideTop = ring.top < 70 && ring.bottom > 70 ? 70 : ring.top;
   const positions = [
-    [ring.right + gap, ring.top],
-    [ring.left - width - gap, ring.top],
+    [ring.right + gap, sideTop],
+    [ring.left - width - gap, sideTop],
     [centeredLeft, ring.bottom + gap],
     [centeredLeft, ring.top - height - gap],
   ];

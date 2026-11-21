@@ -60,3 +60,10 @@ test('плашка шага 11 располагается по центру по
   assert.equal(p[2], p[6]);
   assert.equal(p[4], p[6]);
 });
+
+test('на невысоком экране плашка остаётся сбоку от расчёта и ниже шапки', () => {
+  const ring = box(850, 64, 420, 463);
+  const [left, top] = tourCardPosition(ring, 340, 284, 1280, 600);
+  assert.ok(left + 340 < ring.left);
+  assert.ok(top >= 70 && top + 284 <= 584);
+});
