@@ -854,7 +854,7 @@ document.addEventListener('click', (event) => {
         if (arg === 'refund') {
           const refundVersion = routeVersion;
           clearTimeout(poll);
-          poll = setTimeout(() => { if (refundVersion === routeVersion) void load({ focus: false }).then(() => featureTour.welcome()); }, 2400);
+          poll = setTimeout(() => { if (refundVersion === routeVersion) void load({ focus: false }); }, 2400);
         }
       }
     } else if (action === 'refresh') {
