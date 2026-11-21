@@ -92,3 +92,21 @@ test('обзор защиты показывает независимые сос
   assert.equal(dispute.order.events.length, 5);
   assert.equal(protectedTourViews(now)['tour-protection-payout'].order.events.length, 6);
 });
+
+
+test('длинная подсказка сдвигается вверх рядом с обводкой, сохраняя стрелку', () => {
+  const ring = box(730, 400, 520, 180);
+  const [left,top] = tourCardPosition(ring, 340, 340, 1280, 720);
+  const card = box(left, top, 340, 340);
+  assert.ok(card.right < ring.left);
+  assert.ok(top >= 70 && card.bottom <= 704);
+  assert.notEqual(tourArrowPath(card, ring), '');
+});
+
+test('над широкой областью зазор сокращается, если длинная подсказка иначе перекроет её', () => {
+  const ring = box(191.5, 435.63, 781, 181.55);
+  const [left,top] = tourCardPosition(ring, 340, 324.8, 1280, 720);
+  const card = box(left, top, 340, 324.8);
+  assert.ok(top >= 70 && card.bottom <= ring.top - 24);
+  assert.notEqual(tourArrowPath(card, ring), '');
+});

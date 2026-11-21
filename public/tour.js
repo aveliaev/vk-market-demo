@@ -93,13 +93,14 @@ export function tourCardPosition(ring, width, height, viewportWidth, viewportHei
   const gap = 48;
   const centerX = (ring.left + ring.right) / 2;
   const centeredLeft = Math.max(16, Math.min(viewportWidth - width - 16, centerX - width / 2));
-  const sideTop = ring.top < 70 && ring.bottom > 70 ? 70 : ring.top;
-  const positions = [
-    [ring.right + gap, sideTop],
-    [ring.left - width - gap, sideTop],
-    [centeredLeft, ring.bottom + gap],
-    [centeredLeft, ring.top - height - gap],
+  const sideTop = Math.max(70, Math.min(viewportHeight - height - 16, ring.top));
+  const candidates = (distance) => [
+    [ring.right + distance, sideTop],
+    [ring.left - width - distance, sideTop],
+    [centeredLeft, ring.bottom + distance],
+    [centeredLeft, ring.top - height - distance],
   ];
+  const positions = [...candidates(gap), ...candidates(24)];
   const fits = ([x,y]) => x >= 16 && x + width <= viewportWidth - 16 && y >= 70 && y + height <= viewportHeight - 16;
   return positions.find(fits) ?? [viewportWidth - width - 20, Math.max(70, viewportHeight - height - 20)];
 }
