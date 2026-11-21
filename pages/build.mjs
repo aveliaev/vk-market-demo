@@ -18,7 +18,7 @@ const html = (await readFile('public/index.html', 'utf8')).replace('<html lang="
 await writeFile('dist/index.html', html);
 await writeFile('dist/.nojekyll', '');
 await cp('pages/client.js', 'dist/pages-client.js');
-for (const file of ['app.js', 'protection.js', 'pages-client.js']) {
+for (const file of ['app.js', 'tour.js', 'protection.js', 'pages-client.js']) {
   const script = await readFile('dist/' + file, 'utf8');
   const versioned = script.replace(/(['"])(\.\/(?:tour|vk-icons|protection|protection-model|pages-client|market-worker)\.js)\1/g,
     (_, quote, path) => quote + path + '?v=' + version + quote);

@@ -1,4 +1,10 @@
+import { DAY, createProtectedOrder, transitionProtectedOrder } from './protection-model.js';
+
 const steps = [
+  ['deal/tour-protection-before', '.deal-protected-payment', 'Защита понятна до предоплаты', 'Рядом с кнопкой оплаты заранее объясняем защиту: если товар не придёт или окажется другим, покупатель сможет открыть спор и запросить возврат.', 'new', {shape: 'frame', padX: 22, padY: 12}],
+  ['deal/tour-protection-held', '.deal-money', 'Деньги удерживаются до проверки', 'В этом концепте после оплаты деньги остаются у платёжного партнёра. Продавец видит подтверждение и может отправлять заказ, но выплата ждёт приёмки или окончания 48 часов проверки без спора.', 'new', {shape: 'frame', padX: 20, padY: 18}],
+  ['deal/tour-protection-dispute', '.deal-dispute-details', 'Спор останавливает выплату', 'Вместо кружек пришёл другой товар. Покупатель описывает проблему и запрашивает возврат. Обращение принято, деньги остаются у партнёра, а у продавца выплата приостановлена до решения.', 'new', {shape: 'frame', padX: 22, padY: 22}],
+  ['deal/tour-protection-payout', '.deal-finance', 'После проверки — выплата магазину', 'Если покупатель подтвердил приёмку или 48 часов истекли без спора, заказ завершается. Из оплаты 2 690 ₽ магазин получает 2 595,85 ₽ после комиссий. Обе стороны видят один заказ и общие события.', 'new', {shape: 'frame', padX: 22, padY: 22}],
   ['shop', '.friend-sticker', 'Покупки друзей — у конкретного товара', 'Социальная метка уже есть в VK. В концепте размещаем её на конкретном товаре, чтобы помочь с выбором в каталоге.', 'improvement'],
   ['shop', '.catalog-card[href="#/product/plate"]', 'Срок изготовления виден в каталоге', 'У индивидуального товара отдельно показываем максимальный срок изготовления. Покупатель оценивает ожидание ещё до открытия карточки.', 'improvement'],
   ['product/plate', ['.production-time', '.product-actions [data-action="compose"]'], 'Индивидуальный заказ сначала обсуждаем', 'Переписка с продавцом уже доступна в VK. Дорабатываем сценарий: рядом с максимальным сроком предлагаем согласовать детали и дату изготовления.', 'improvement'],
@@ -98,6 +104,29 @@ export function tourCardPosition(ring, width, height, viewportWidth, viewportHei
   return positions.find(fits) ?? [viewportWidth - width - 20, Math.max(70, viewportHeight - height - 20)];
 }
 
+// Build tour scenes through the same transitions as the interactive demo.
+// Each scene is independent; inspecting the tour never advances a live order.
+export function protectedTourViews(now = Date.now()) {
+  const change = (order, type, role, at = now, extra = {}) => transitionProtectedOrder(order, {type, role, ...extra}, at);
+  const offer = createProtectedOrder('good', now);
+  let paid = change(offer, 'checkout', 'buyer');
+  paid = change(paid, 'pay', 'buyer');
+  paid = change(paid, 'confirm-payment', 'buyer');
+  const shipped = change(paid, 'ship', 'seller', now + DAY);
+  const delivered = change(shipped, 'deliver', 'demo', now + 3 * DAY);
+  const checkedAt = now + 3 * DAY + 3600000;
+  const disputed = change({...delivered, scenario: 'different'}, 'report', 'buyer', checkedAt, {
+    reason: 'different', description: 'Вместо двух кобальтовых кружек пришли тарелки. Прошу вернуть стоимость заказа и доставки.',
+  });
+  const completed = change(delivered, 'accept', 'buyer', checkedAt);
+  return {
+    'tour-protection-before': {order: offer, role: 'buyer', now},
+    'tour-protection-held': {order: paid, role: 'buyer', now},
+    'tour-protection-dispute': {order: disputed, role: 'buyer', now: checkedAt},
+    'tour-protection-payout': {order: completed, role: 'seller', now: checkedAt},
+  };
+}
+
 export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
   const root = document.createElement('div');
   root.className = 'feature-tour';
@@ -181,7 +210,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
       delivery: {method: 'Пункт выдачи', address: 'ПВЗ «Центр» · ул. Садовая, 8', from: day(2), to: day(4)},
       lines: [{productId: plate.id, title: plate.title, variant: plate.variants[0], quantity: 1, total: plate.price}]};
     return {
-      store: {...store, eligible: true}, merchant, posts: [], faq: [],
+      store: {...store, eligible: true}, merchant, posts: [], faq: [], protected: protectedTourViews(),
       seller: {...merchant.seller, stage: 'connected', payouts: true, receipts: true, registered: true},
       questions: [{id: 'tour-question', product_id: plate.id, variant: plate.variants[0], question: 'Хочу тарелку с индивидуальной росписью. Согласуем состав, цену и дату готовности?', reply: 'Согласовали одну тарелку в кобальтовом цвете. Цена и дата готовности зафиксированы в заказе.'}], chatOrders: [{...custom, questionId: 'tour-question'}], purchases: [paid],
       cart: {lines: base.lines, total: base.total, revision: 'tour'},
@@ -191,7 +220,7 @@ export function createFeatureTour({ api, navigate, state, onStart, onEnd }) {
 
   function dataFor(field, key) {
     if (!active || !preview) return undefined;
-    return field === 'order' ? preview.orders[key] : preview[field];
+    return field === 'order' ? preview.orders[key] : field === 'protected' ? preview.protected[key] : preview[field];
   }
 
   function place() {

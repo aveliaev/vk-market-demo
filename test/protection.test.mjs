@@ -107,3 +107,11 @@ test('валидация и роли не позволяют обойти опл
   assert.equal(canReport(expired, d.checkUntil + 1), false);
   assert.throws(() => change(d, {type:'back',role:'buyer'}, t + 3 * DAY));
 });
+
+
+test('продавец фиксирует свой трек-номер, который сохраняется в событиях заказа', () => {
+  const o = change(paid(), {type:'ship', role:'seller', tracking:'1004276589'}, t + DAY);
+  assert.equal(o.tracking, '1004276589');
+  assert.match(o.events.at(-1).text, /1004276589/);
+  assert.throws(() => change(paid(), {type:'ship',role:'seller',tracking:'x'}, t + DAY));
+});

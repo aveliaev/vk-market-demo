@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { tourArrowPath, tourCardPosition } from '../public/tour.js';
+import { tourArrowPath, tourCardPosition, protectedTourViews } from '../public/tour.js';
 
 const box = (left, top, width, height) => ({left, top, right: left + width, bottom: top + height, width, height});
 const points = (path) => path.match(/-?\d+(?:\.\d+)?/g).map(Number);
@@ -66,4 +66,29 @@ test('на невысоком экране плашка остаётся сбо�
   const [left, top] = tourCardPosition(ring, 340, 284, 1280, 600);
   assert.ok(left + 340 < ring.left);
   assert.ok(top >= 70 && top + 284 <= 584);
+});
+
+
+test('обзор защиты показывает независимые состояния одного заказа без преждевременной выплаты', () => {
+  const now = Date.UTC(2026, 10, 21, 10);
+  const scenes = protectedTourViews(now);
+  const [offer, held, dispute, payout] = Object.values(scenes);
+  assert.deepEqual(Object.values(scenes).map((scene) => scene.order.phase), ['offer', 'paid', 'dispute', 'completed']);
+  assert.equal(payout.role, 'seller');
+  for (const scene of Object.values(scenes)) {
+    assert.equal(scene.order.id, 'ЗС-1042');
+    assert.equal(scene.order.amount, 269000);
+    assert.equal(scene.order.quantity, 2);
+  }
+  assert.equal(held.order.payout, 0);
+  assert.equal(dispute.order.payout, 0);
+  assert.equal(dispute.order.dispute.reason, 'different');
+  assert.equal(payout.order.payout, 259585);
+  assert.equal(payout.order.dispute, null);
+  // A later scene must not mutate an earlier one when the jury goes back.
+  payout.order.events.push({at: now, text: 'Изменение только этого образца'});
+  assert.equal(offer.order.events.length, 1);
+  assert.equal(held.order.events.length, 2);
+  assert.equal(dispute.order.events.length, 5);
+  assert.equal(protectedTourViews(now)['tour-protection-payout'].order.events.length, 6);
 });

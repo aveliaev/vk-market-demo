@@ -63,24 +63,24 @@ const featureTour = createFeatureTour({
 });
 
 const navigation = [
-  ['Демонстрация', [['deal', 'shield', 'Защищённая сделка']]],
   ['Покупатель', [['shop', 'shop', 'Витрина'], ['cart','cart','Корзина'], ['purchases','receipt','Мои заказы'], ['chat', 'chat', 'Переписка']]],
   ['Продавец', [['post', 'write', 'Создать пост'], ['seller', 'bolt', 'Подключение'], ['price', 'tag', 'Цена и комиссии'], ['orders', 'box', 'Заказы'], ['analytics', 'chart', 'Аналитика']]],
   ['Администрирование', [['admin', 'shield', 'Сверка платежей']]],
 ];
 const route = () => location.hash.slice(1).split('/').filter(Boolean);
-const current = () => route()[0] ?? 'deal';
+const current = () => route()[0] ?? 'shop';
 const go = (href) => { location.hash = '/' + href; };
 
 function chrome(page) {
-  const buyerPages = ['deal', 'product', 'shop', 'cart', 'purchases', 'chat', 'checkout', 'receipt'];
+  const protectedSeller = page === 'deal' && (route()[1] === 'seller' || featureTour.dataFor('protected', route()[1])?.role === 'seller');
+  const buyerPages = protectedSeller ? [] : ['deal', 'product', 'shop', 'cart', 'purchases', 'chat', 'checkout', 'receipt'];
   const currentSection = page === 'checkout' || page === 'receipt'
     ? (state.order?.source === 'chat' ? 'chat' : state.order?.source === 'cart' ? 'cart' : 'shop')
-    : page === 'product' ? 'shop' : page;
+    : page === 'deal' ? (protectedSeller ? 'orders' : 'chat') : page === 'product' ? 'shop' : page;
   const names = Object.fromEntries(navigation.flatMap(([, list]) => list.map(([key,, name]) => [key, name])));
-  Object.assign(names, { product: 'Карточка товара', checkout: 'Оформление заказа', receipt: 'Чек' });
+  Object.assign(names, { product: 'Карточка товара', checkout: 'Оформление заказа', receipt: 'Чек', deal: protectedSeller ? 'Заказ магазина' : 'Переписка' });
   document.querySelector('#sidebar').innerHTML = `
-    <nav aria-label="Разделы приложения">${navigation.map(([title, items]) => `<div class="nav-group"><p>${title}</p>${items.map(([key, symbol, name]) => `<a href="#/${key}" ${key === currentSection ? 'aria-current="page"' : ''}>${icon(symbol)}${name}</a>`).join('')}</div>`).join('')}</nav>`;
+    <nav aria-label="Разделы приложения">${navigation.map(([title, items]) => `<div class="nav-group"><p>${title}</p>${items.map(([key, symbol, name]) => `<a href="#/${key === 'chat' ? 'deal/buyer/chat' : key}" ${key === currentSection ? 'aria-current="page"' : ''}>${icon(symbol)}${name}</a>`).join('')}</div>`).join('')}</nav>`;
   const orderPage = page === 'checkout' || page === 'receipt';
   const rootLabel = buyerPages.includes(page) ? 'Керамика «Форма»' : page === 'admin' ? 'Администрирование' : 'Кабинет продавца';
   document.querySelector('#topbar').innerHTML = `
@@ -140,7 +140,7 @@ function shop() {
   const categories = ['', ...new Set(state.store.catalog.map((item) => item.category))];
   return `<section class="panel store-head">
     <div class="store-identity">${shopAvatar()}<div><h1>${state.store.seller}</h1><p>Мастерская керамики и товаров для дома</p></div></div>
-    <div class="inline-actions"><a class="btn secondary" href="#/chat">${icon('chat')}Сообщение</a><a class="btn secondary" href="#/deal">${icon('shield')}Защищённая сделка</a></div>
+    <a class="btn secondary" href="#/deal/buyer/chat">${icon('chat')}Сообщение</a>
   </section>
   <div class="catalog-layout">
     <section class="panel catalog-panel">
@@ -327,7 +327,7 @@ function chat() {
   const store = state.store;
   const selected = state.questions.find((entry) => entry.id === route()[1]);
   const product = store.catalog.find((entry) => entry.id === selected?.product_id) ?? store.catalog[0];
-  return `${heading('Переписка', 'Индивидуальный заказ', '<a class="btn secondary" href="#/deal">' + icon('shield') + 'Попробовать оплату с защитой</a>')}
+  return `${heading('Переписка', 'Индивидуальный заказ', '<a class="btn secondary" href="#/deal">' + icon('shield') + 'Переписка с магазином</a>')}
     <div class="two-column chat-grid"><section class="panel conversation">
       <div class="conversation-head">${shopAvatar()}<div><strong>${store.seller}</strong><span>Сообщения магазина</span></div></div>
       <div class="messages">
@@ -383,7 +383,8 @@ function cartPage() {
 
 function purchases() {
   const orders = state.purchases;
-  return `${heading('Мои заказы', 'История покупок в этом браузере')}
+  const protectedRecord = featureTour.active ? '' : protection.orderCard('buyer');
+  return `${heading('Мои заказы', 'Магазин «Форма»')}${protectedRecord}
     ${orders.length ? orders.map((o) => `<article class="panel section purchase-record">
       <div class="registry-head"><h2><a class="order-link" href="#/checkout/${o.token}">Заказ ${safe(o.id)}</a></h2>${badge(o.statusLabel, o.status === 'paid' ? 'green' : '')}</div>
       ${o.buyerName ? `<p class="muted">Покупка демопрофиля · ${date(o.created)}</p>` : ''}
@@ -391,7 +392,7 @@ function purchases() {
       ${deliverySummary(o)}${o.status === 'paid' ? row('Исполнение', o.fulfillmentStatus === 'ready' && o.fulfillment.startsWith('Самовывоз') ? 'Готов к самовывозу' : fulfillmentLabel[o.fulfillmentStatus]) : ''}
       <div class="inline-actions"><a class="btn secondary" href="#/checkout/${o.token}">Открыть заказ</a>
       ${o.receipt !== 'missing' ? `<a class="btn text-button" href="#/receipt/${o.token}">Чек</a>` : ''}</div>
-      </article>`).join('') : '<section class="panel section"><h2>Заказов пока нет</h2><p>После оформления заказ появится здесь.</p><a href="#/shop" class="btn primary">В каталог</a></section>'}`;
+      </article>`).join('') : protectedRecord ? '' : '<section class="panel section"><h2>Заказов пока нет</h2><p>После оформления заказ появится здесь.</p><a href="#/shop" class="btn primary">В каталог</a></section>'}`;
 }
 
 function funnelPanel(data, orders) {
@@ -526,9 +527,12 @@ function receipt() {
 }
 
 function orders() {
-  const { orders, summary } = state.merchant;
+  const { orders } = state.merchant;
+  const protectedRecord = featureTour.active ? '' : protection.orderCard('seller');
+  const added = featureTour.active ? {turnover: 0, scheduled: 0, payouts: 0} : protection.totals();
+  const summary = Object.fromEntries(Object.entries(state.merchant.summary).map(([key, value]) => [key, value + (added[key] ?? 0)]));
   return `${heading('Заказы', 'Реестр магазина «Форма»', '<a class="btn primary" href="#/chat">' + icon('plus') + 'Создать заказ</a>')}
-    <div class="metrics three">${tile('Оборот после возвратов', rub(summary.turnover), '', 'chart')}
+    ${protectedRecord}<div class="metrics three">${tile('Оборот после возвратов', rub(summary.turnover), '', 'chart')}
       ${tile('К перечислению', rub(summary.scheduled), 'Демо-выплаты', 'wallet')}${tile('Перечислено', rub(summary.payouts), 'До налогов', 'check')}</div>
     <section class="panel registry"><div class="registry-head"><h2>Все заказы</h2>${badge(String(orders.length), 'blue')}</div>
       <div class="table-scroll" tabindex="0" role="region" aria-label="Таблица заказов"><table><thead><tr><th>Заказ</th><th>Оплата</th><th>Сумма</th><th>Комиссия VK</th><th>Эквайринг</th><th>К выплате</th><th>Исполнение</th></tr></thead><tbody>
@@ -617,11 +621,12 @@ function errorPanel(message) {
   return `<section class="panel section"><h1>Не удалось открыть экран</h1><p>${safe(message)}</p><a class="btn primary" href="#/shop">На витрину</a></section>`;
 }
 
-const protection = createProtectionDemo({ main, icon, rub, safe, datetime, date, row, badge, shopAvatar, methodName, methodChoices, orderDetails, redraw: () => render('deal'), notify: toast });
-const pages = { deal: protection.render, post: postEditor, shop, cart: cartPage, purchases, product, seller, price: pricePage, chat, checkout, receipt, orders, analytics, admin };
+const protection = createProtectionDemo({ main, icon, rub, safe, datetime, date, row, badge, shopAvatar, methodName, methodChoices, orderDetails, redraw: () => { chrome('deal'); render('deal'); }, notify: toast });
+const pages = { deal: () => protection.render(featureTour.dataFor('protected', route()[1]), route()[1], route()[2] === 'chat'), post: postEditor, shop, cart: cartPage, purchases, product, seller, price: pricePage, chat, checkout, receipt, orders, analytics, admin };
 function render(page = current()) {
   const [, key] = route();
   main.innerHTML = page === 'orders' && key ? orderDetail(decodeURIComponent(key)) : (Object.hasOwn(pages, page) ? pages[page]() : errorPanel('Такого раздела нет.'));
+  if (page === 'deal') protection.afterRender();
 }
 
 function needsPoll() {
@@ -656,7 +661,7 @@ async function load({ focus = true } = {}) {
   const version = ++routeVersion;
   clearTimeout(poll);
   if (dialog.open) dialog.close();
-  const [path = 'deal', key] = route();
+  const [path = 'shop', key] = route();
   chrome(path);
   main.setAttribute('aria-busy', 'true');
   if (focus) main.innerHTML = '<p class="loading">Загружаем…</p>';
@@ -954,4 +959,4 @@ document.querySelector('.skip-link').addEventListener('click', (event) => {
   main.focus();
 });
 window.addEventListener('hashchange', () => void load());
-void load({ focus: false }).then(() => current() === 'shop' ? featureTour.welcome() : undefined);
+void load({ focus: false });

@@ -77,8 +77,10 @@ export function transitionProtectedOrder(source, action, now = Date.now()) {
       event(order, now, 'Оплата подтверждена. Деньги удерживаются платёжным партнёром.'); break;
     case 'ship':
       role('seller'); require(order.phase === 'paid');
-      order.phase = 'shipped'; order.tracking = 'DEMO-1042';
-      event(order, now, 'Продавец передал посылку в СДЭК. Трек DEMO-1042.'); break;
+      const tracking = String(action.tracking ?? 'DEMO-1042').trim();
+      require(/^[A-Za-z0-9-]{5,40}$/.test(tracking), 'Укажите трек-номер: от 5 до 40 букв, цифр или дефисов.');
+      order.phase = 'shipped'; order.tracking = tracking;
+      event(order, now, 'Продавец передал посылку в СДЭК. Трек ' + tracking + '.'); break;
     case 'deliver':
       require(action.role === 'demo'); require(order.phase === 'shipped');
       order.phase = 'delivered'; order.deliveredAt = now; order.checkUntil = now + CHECK_PERIOD;
