@@ -4,7 +4,7 @@ import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 
-const sources = ['public/app.js', 'public/tour.js', 'public/vk-icons.js', 'public/style.css',
+const sources = ['public/app.js', 'public/tour.js', 'public/protection.js', 'public/protection-model.js', 'public/vk-icons.js', 'public/style.css',
   'pages/client.js', 'pages/worker.js', 'market.mjs', 'public/index.html', 'pages/build.mjs'];
 const hash = createHash('sha256');
 for (const file of sources) hash.update(await readFile(file));
@@ -18,9 +18,9 @@ const html = (await readFile('public/index.html', 'utf8')).replace('<html lang="
 await writeFile('dist/index.html', html);
 await writeFile('dist/.nojekyll', '');
 await cp('pages/client.js', 'dist/pages-client.js');
-for (const file of ['app.js', 'pages-client.js']) {
+for (const file of ['app.js', 'protection.js', 'pages-client.js']) {
   const script = await readFile('dist/' + file, 'utf8');
-  const versioned = script.replace(/(['"])(\.\/(?:tour|vk-icons|pages-client|market-worker)\.js)\1/g,
+  const versioned = script.replace(/(['"])(\.\/(?:tour|vk-icons|protection|protection-model|pages-client|market-worker)\.js)\1/g,
     (_, quote, path) => quote + path + '?v=' + version + quote);
   await writeFile('dist/' + file, versioned);
 }

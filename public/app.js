@@ -1,5 +1,6 @@
 import { vkIcons } from './vk-icons.js';
 import { createFeatureTour } from './tour.js';
+import { createProtectionDemo } from './protection.js';
 
 const main = document.querySelector('main');
 const dialog = document.querySelector('#dialog');
@@ -62,16 +63,17 @@ const featureTour = createFeatureTour({
 });
 
 const navigation = [
+  ['Демонстрация', [['deal', 'shield', 'Защищённая сделка']]],
   ['Покупатель', [['shop', 'shop', 'Витрина'], ['cart','cart','Корзина'], ['purchases','receipt','Мои заказы'], ['chat', 'chat', 'Переписка']]],
   ['Продавец', [['post', 'write', 'Создать пост'], ['seller', 'bolt', 'Подключение'], ['price', 'tag', 'Цена и комиссии'], ['orders', 'box', 'Заказы'], ['analytics', 'chart', 'Аналитика']]],
   ['Администрирование', [['admin', 'shield', 'Сверка платежей']]],
 ];
 const route = () => location.hash.slice(1).split('/').filter(Boolean);
-const current = () => route()[0] ?? 'shop';
+const current = () => route()[0] ?? 'deal';
 const go = (href) => { location.hash = '/' + href; };
 
 function chrome(page) {
-  const buyerPages = ['product', 'shop', 'cart', 'purchases', 'chat', 'checkout', 'receipt'];
+  const buyerPages = ['deal', 'product', 'shop', 'cart', 'purchases', 'chat', 'checkout', 'receipt'];
   const currentSection = page === 'checkout' || page === 'receipt'
     ? (state.order?.source === 'chat' ? 'chat' : state.order?.source === 'cart' ? 'cart' : 'shop')
     : page === 'product' ? 'shop' : page;
@@ -138,7 +140,7 @@ function shop() {
   const categories = ['', ...new Set(state.store.catalog.map((item) => item.category))];
   return `<section class="panel store-head">
     <div class="store-identity">${shopAvatar()}<div><h1>${state.store.seller}</h1><p>Мастерская керамики и товаров для дома</p></div></div>
-    <a class="btn secondary" href="#/chat">${icon('chat')}Сообщение</a>
+    <div class="inline-actions"><a class="btn secondary" href="#/chat">${icon('chat')}Сообщение</a><a class="btn secondary" href="#/deal">${icon('shield')}Защищённая сделка</a></div>
   </section>
   <div class="catalog-layout">
     <section class="panel catalog-panel">
@@ -325,7 +327,7 @@ function chat() {
   const store = state.store;
   const selected = state.questions.find((entry) => entry.id === route()[1]);
   const product = store.catalog.find((entry) => entry.id === selected?.product_id) ?? store.catalog[0];
-  return `${heading('Переписка', 'Индивидуальный заказ')}
+  return `${heading('Переписка', 'Индивидуальный заказ', '<a class="btn secondary" href="#/deal">' + icon('shield') + 'Попробовать оплату с защитой</a>')}
     <div class="two-column chat-grid"><section class="panel conversation">
       <div class="conversation-head">${shopAvatar()}<div><strong>${store.seller}</strong><span>Сообщения магазина</span></div></div>
       <div class="messages">
@@ -445,8 +447,8 @@ function orderDetails(o) {
   </section>`;
 }
 
-function methodChoices() {
-  return `<fieldset class="payment-choices"><legend>Способ оплаты</legend>${[['card','card','Банковская карта','Подтверждение на стороне партнёра'],['sbp','bolt','СБП','Подтверждение в приложении банка'],['wallet','wallet','VK Кошелёк','Подтверждение в тестовом кошельке']].map(([method, symbol, title, desc]) => `<label class="choice payment-choice"><span class="feature-icon">${icon(symbol)}</span><span class="payment-label"><strong>${title} ${method === 'wallet' ? badge('Кешбэк 5%', 'green') : ''}</strong><small>${desc}</small></span><input type="radio" name="method" value="${method}" ${state.method === method ? 'checked' : ''}></label>`).join('')}</fieldset>`;
+function methodChoices(selected = state.method, cashback = true) {
+  return `<fieldset class="payment-choices"><legend>Способ оплаты</legend>${[['card','card','Банковская карта','Подтверждение на стороне партнёра'],['sbp','bolt','СБП','Подтверждение в приложении банка'],['wallet','wallet','VK Кошелёк','Подтверждение в тестовом кошельке']].map(([method, symbol, title, desc]) => `<label class="choice payment-choice"><span class="feature-icon">${icon(symbol)}</span><span class="payment-label"><strong>${title} ${method === 'wallet' && cashback ? badge('Кешбэк 5%', 'green') : ''}</strong><small>${desc}</small></span><input type="radio" name="method" value="${method}" ${selected === method ? 'checked' : ''}></label>`).join('')}</fieldset>`;
 }
 
 function checkoutComparison() {
@@ -615,7 +617,8 @@ function errorPanel(message) {
   return `<section class="panel section"><h1>Не удалось открыть экран</h1><p>${safe(message)}</p><a class="btn primary" href="#/shop">На витрину</a></section>`;
 }
 
-const pages = { post: postEditor, shop, cart: cartPage, purchases, product, seller, price: pricePage, chat, checkout, receipt, orders, analytics, admin };
+const protection = createProtectionDemo({ main, icon, rub, safe, datetime, date, row, badge, shopAvatar, methodName, methodChoices, orderDetails, redraw: () => render('deal'), notify: toast });
+const pages = { deal: protection.render, post: postEditor, shop, cart: cartPage, purchases, product, seller, price: pricePage, chat, checkout, receipt, orders, analytics, admin };
 function render(page = current()) {
   const [, key] = route();
   main.innerHTML = page === 'orders' && key ? orderDetail(decodeURIComponent(key)) : (Object.hasOwn(pages, page) ? pages[page]() : errorPanel('Такого раздела нет.'));
@@ -653,7 +656,7 @@ async function load({ focus = true } = {}) {
   const version = ++routeVersion;
   clearTimeout(poll);
   if (dialog.open) dialog.close();
-  const [path = 'shop', key] = route();
+  const [path = 'deal', key] = route();
   chrome(path);
   main.setAttribute('aria-busy', 'true');
   if (focus) main.innerHTML = '<p class="loading">Загружаем…</p>';
@@ -903,6 +906,7 @@ document.addEventListener('change', (event) => {
   const field = event.target;
   if (field.name === 'productId' && current() === 'post') postDraft.productId = field.value;
   if (field.name === 'method') {
+    if (current() === 'deal') return;
     state.method = field.value;
     document.querySelector('#cashback-preview').hidden = field.value !== 'wallet';
   }
@@ -950,4 +954,4 @@ document.querySelector('.skip-link').addEventListener('click', (event) => {
   main.focus();
 });
 window.addEventListener('hashchange', () => void load());
-void load({ focus: false }).then(() => featureTour.welcome());
+void load({ focus: false }).then(() => current() === 'shop' ? featureTour.welcome() : undefined);

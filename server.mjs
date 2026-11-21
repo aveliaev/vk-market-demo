@@ -18,7 +18,7 @@ const market = createMarket(db, {
 });
 
 const contentTypes = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.png': 'image/png', '.ttf': 'font/ttf', '.woff': 'font/woff', '.txt': 'text/plain; charset=utf-8' };
-const publicFiles = new Set(['/index.html', '/app.js', '/tour.js', '/vk-icons.js', '/style.css', '/assets/vk.svg', '/assets/VK-ICONS-LICENSE.txt',
+const publicFiles = new Set(['/index.html', '/app.js', '/tour.js', '/protection.js', '/protection-model.js', '/vk-icons.js', '/style.css', '/assets/vk.svg', '/assets/VK-ICONS-LICENSE.txt',
   '/assets/fonts/NOTICE.txt', '/assets/fonts/VK-Sans-Text-Regular.ttf', '/assets/fonts/VK-Sans-Text-Medium.ttf',
   '/assets/fonts/VK-Sans-Text-DemiBold.ttf', '/assets/fonts/VK-Sans-Display-DemiBold.woff', '/assets/chevron.svg', '/assets/friends-choice.png', '/assets/custom-product.png', '/assets/shop-avatar.png', '/assets/tour-marker.png', '/assets/tour-marker-pill.png', '/assets/tour-marker-circle.png', '/assets/tour-marker-frame.png', ...market.productIds.map((id) => '/assets/' + id + '.webp')]);
 
@@ -64,7 +64,7 @@ async function handle(request, response) {
   const data = await readFile(resolve(root, 'public' + file)).catch(() => { throw new ApiError(404, 'Файл не найден.'); });
   response.writeHead(200, {
     'Content-Type': contentTypes[extname(file)],
-    'Content-Security-Policy': "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+    'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
   });
   response.end(request.method === 'HEAD' ? undefined : data);
 }
